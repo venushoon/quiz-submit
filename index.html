@@ -1,13 +1,639 @@
 <!doctype html>
 <html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>퀴즈 문제 제출 · quiz-submit</title>
-    <link rel="icon" type="image/svg+xml" href="./vite.svg" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>실시간 퀴즈 (바닐라 JS)</title>
+<style>
+  :root {
+    --bg:#0b1220; --panel:#111827; --panel2:#0f172a; --border:#1f2937; --text:#e5e7eb; --muted:#9ca3af;
+    --primary:#6366f1; --primary-2:#4f46e5; --accent:#22d3ee; --ok:#10b981; --no:#ef4444; --chip:#1f2937;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Noto Sans KR, Helvetica, Arial, Apple SD Gothic Neo, 맑은 고딕, sans-serif}
+  .wrap{max-width:1200px;margin:0 auto;padding:24px}
+  .row{display:flex;align-items:center;gap:12px}
+  .hidden{display:none !important}
+  input,textarea,select,button{font:inherit;color:inherit}
+  input[type=text], input[type=number], textarea {
+    background:var(--panel2); border:1px solid var(--border); color:var(--text);
+    border-radius:10px; padding:10px 12px;
+  }
+  textarea{width:100%;min-height:80px;resize:vertical}
+  .btn{background:var(--primary);border:1px solid transparent;border-radius:14px;padding:10px 16px;cursor:pointer}
+  .btn:hover{background:var(--primary-2)}
+  .btn.ghost{background:transparent;border-color:var(--border)}
+  .btn.ghost:hover{background:#0b1220}
+  .badge{display:inline-flex;align-items:center;gap:8px;background:#171f34;border:1px solid #223052;color:#f87171;padding:6px 12px;border-radius:30px}
+  .badge .dot{width:10px;height:10px;border-radius:50%;background:#ef4444;box-shadow:0 0 0 6px #ef44441f}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px}
+  h1{font-size:40px;margin:10px 0 6px}
+  .muted{color:var(--muted)}
+  .input-xl{height:44px;padding:8px 16px;border-radius:14px}
+  .tabbar{display:flex;gap:8px;border-bottom:1px solid var(--border);margin-bottom:12px}
+  .tab{padding:10px 14px;border:1px solid var(--border);border-bottom:none;border-radius:12px 12px 0 0;background:var(--panel2);cursor:pointer;color:var(--muted)}
+  .tab.active{background:#131a2d;color:var(--text)}
+  .option{display:block;width:100%;text-align:left;background:#0e162b;border:1px solid var(--border);padding:12px;border-radius:12px;cursor:pointer}
+  .option:hover{background:#0c1426}
+  .option.selected{border-color:var(--accent)}
+  .option.correct{background:#05251a;border-color:#0c7a55}
+  .option.wrong{background:#2a0d0d;border-color:#b91c1c}
+  .chip{display:inline-flex;align-items:center;margin:4px;padding:6px 10px;background:var(--chip);border:1px solid var(--border);border-radius:100px}
+  .chip.ok{border-color:#065f46}
+  .chip.no{border-color:#7f1d1d}
+  table{width:100%;border-collapse:collapse}
+  th,td{border:1px solid var(--border);padding:8px;text-align:center}
+  th{background:#0f1527}
+  .right{margin-left:auto}
+  .gap{gap:10px}
+</style>
+
+<!-- Firebase compat (v9) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="row gap">
+      <span class="badge"><span class="dot"></span> LIVE</span>
+      <div class="right row gap">
+        <label class="muted">세션 코드</label>
+        <input id="roomIdInput" class="input-xl" placeholder="예: classA" />
+        <button id="btnConnect" class="btn">접속</button>
+        <button id="btnTeacherMode" class="btn ghost">관리자</button>
+        <button id="btnStudentMode" class="btn ghost">학생</button>
+      </div>
+    </div>
+
+    <h1>실시간 퀴즈</h1>
+    <div id="statusText" class="muted">세션에 접속해 주세요.</div>
+
+    <!-- 학생: 참가 카드 -->
+    <div id="joinCard" class="panel row gap" style="margin-top:16px">
+      <input id="studentName" class="input-xl" placeholder="이름 또는 번호" />
+      <button id="btnJoin" class="btn">참가</button>
+    </div>
+
+    <!-- 학생: 퀴즈 패널 -->
+    <div id="studentQuiz" class="panel" style="margin-top:16px">
+      <div class="row gap">
+        <span id="quizTypeBadge" class="badge">대기</span>
+        <div id="progressText" class="muted">0 / 0</div>
+      </div>
+      <h3 id="questionText" style="margin:8px 0 12px">대기 중입니다…</h3>
+      <div id="optionsContainer" class="row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"></div>
+      <div id="subjectiveBox" class="hidden" style="margin-top:10px">
+        <input id="subjectiveInput" class="input-xl" placeholder="정답 입력" />
+        <button id="btnSubmitSubjective" class="btn">제출</button>
+      </div>
+      <div id="answerState" class="muted" style="margin-top:8px"></div>
+    </div>
+
+    <!-- 관리자 패널 -->
+    <div id="teacherPanel" class="hidden" style="margin-top:20px">
+      <div class="tabbar">
+        <button class="tab active" data-tab="build">문항 만들기</button>
+        <button class="tab" data-tab="control">진행</button>
+        <button class="tab" data-tab="results">결과</button>
+      </div>
+
+      <!-- 문항 만들기 -->
+      <section id="tab-build" class="">
+        <div class="panel">
+          <div class="row gap">
+            <input id="quizTitle" class="input-xl" placeholder="퀴즈 제목" style="flex:1"/>
+            <label>문항 수</label>
+            <input id="questionCount" type="number" class="input-xl" style="width:100px" min="1" max="20" value="3" />
+            <button id="btnBuildForm" class="btn">폼 만들기</button>
+            <button id="btnLoadSample" class="btn ghost">샘플 불러오기</button>
+            <button id="btnSaveQuiz" class="btn">퀴즈 저장</button>
+          </div>
+        </div>
+        <div id="builder" class="row" style="display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px"></div>
+      </section>
+
+      <!-- 진행 -->
+      <section id="tab-control" class="hidden">
+        <div class="panel">
+          <div class="row gap">
+            <button id="btnStart" class="btn">시작</button>
+            <button id="btnPrev" class="btn ghost">이전</button>
+            <button id="btnNext" class="btn">다음</button>
+            <button id="btnStop" class="btn ghost">종료</button>
+            <label class="row gap"><input id="toggleAccept" type="checkbox" /> 제출 허용</label>
+            <div class="right muted">현재: <span id="ctlQuestion">-</span></div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:12px">
+          <div class="muted">제출자</div>
+          <div id="chips" style="margin-top:6px"></div>
+        </div>
+
+        <div id="shortGrader" class="panel hidden" style="margin-top:12px">
+          <div class="muted">주관식 채점</div>
+          <div id="shortAnswers" style="margin-top:8px;display:grid;grid-template-columns:1fr;gap:8px"></div>
+        </div>
+      </section>
+
+      <!-- 결과 -->
+      <section id="tab-results" class="hidden">
+        <div class="row gap">
+          <button id="btnExportCSV" class="btn">CSV 내보내기</button>
+        </div>
+        <div id="resultsContainer" class="panel" style="margin-top:12px"></div>
+      </section>
+    </div>
+  </div>
+
+<script>
+/* ---------------- Firebase 초기화 ---------------- */
+// TODO: 아래를 자신의 Firebase 설정으로 교체하세요
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+/* ---------------- 앱 스크립트 ---------------- */
+(function(){
+  const qs = (sel, el=document)=>el.querySelector(sel);
+  const qsa = (sel, el=document)=>Array.from(el.querySelectorAll(sel));
+
+  // UI refs
+  const statusText = qs('#statusText');
+  const btnConnect = qs('#btnConnect');
+  const roomIdInput = qs('#roomIdInput');
+  const btnTeacherMode = qs('#btnTeacherMode');
+  const btnStudentMode = qs('#btnStudentMode');
+
+  const joinCard = qs('#joinCard');
+  const studentQuiz = qs('#studentQuiz');
+  const questionText = qs('#questionText');
+  const progressText = qs('#progressText');
+  const optionsContainer = qs('#optionsContainer');
+  const subjectiveBox = qs('#subjectiveBox');
+  const subjectiveInput = qs('#subjectiveInput');
+  const btnSubmitSubjective = qs('#btnSubmitSubjective');
+  const quizTypeBadge = qs('#quizTypeBadge');
+  const answerState = qs('#answerState');
+
+  const teacherPanel = qs('#teacherPanel');
+  const tabs = qsa('.tab');
+  const tabBuild = qs('#tab-build');
+  const tabControl = qs('#tab-control');
+  const tabResults = qs('#tab-results');
+  const quizTitle = qs('#quizTitle');
+  const questionCount = qs('#questionCount');
+  const btnBuildForm = qs('#btnBuildForm');
+  const btnLoadSample = qs('#btnLoadSample');
+  const builder = qs('#builder');
+  const btnSaveQuiz = qs('#btnSaveQuiz');
+
+  const btnStart = qs('#btnStart');
+  const btnStop = qs('#btnStop');
+  const btnPrev = qs('#btnPrev');
+  const btnNext = qs('#btnNext');
+  const toggleAccept = qs('#toggleAccept');
+  const ctlQuestion = qs('#ctlQuestion');
+  const chips = qs('#chips');
+  const shortGrader = qs('#shortGrader');
+  const shortAnswers = qs('#shortAnswers');
+
+  const btnExportCSV = qs('#btnExportCSV');
+  const resultsContainer = qs('#resultsContainer');
+
+  // State
+  let MODE = 'student'; // 'teacher' | 'student'
+  let roomId = '';
+  let me = { id: null, name: '' };
+  let unsubRoom = null;
+  let unsubResponses = null;
+
+  // Tabs
+  tabs.forEach(t => t.addEventListener('click', () => {
+    tabs.forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    const name = t.dataset.tab;
+    [tabBuild,tabControl,tabResults].forEach(p=>p.classList.add('hidden'));
+    if(name==='build') tabBuild.classList.remove('hidden');
+    if(name==='control') tabControl.classList.remove('hidden');
+    if(name==='results') tabResults.classList.remove('hidden');
+  }));
+
+  // Mode switch
+  btnTeacherMode.addEventListener('click', ()=>setMode('teacher'));
+  btnStudentMode.addEventListener('click', ()=>setMode('student'));
+  function setMode(m){
+    MODE = m;
+    teacherPanel.classList.toggle('hidden', m!=='teacher');
+    joinCard.classList.toggle('hidden', m!=='student');
+    studentQuiz.classList.toggle('hidden', m!=='student');
+    statusText.textContent = m==='teacher' ? '관리자 모드: 세션을 연결해 주세요.' : '학생 모드: 세션 접속 후 참가하세요.';
+  }
+
+  // Connect to room
+  btnConnect.addEventListener('click', async ()=>{
+    roomId = (roomIdInput.value||'').trim();
+    if(!roomId){ alert('세션 코드를 입력하세요'); return; }
+    await ensureRoomExists(roomId);
+    listenRoom(roomId);
+    listenResponses(roomId);
+  });
+
+  // Student join
+  qs('#btnJoin').addEventListener('click', async ()=>{
+    if(MODE!=='student'){ alert('학생 모드에서만 참가합니다.'); return; }
+    const name = (qs('#studentName').value||'').trim();
+    if(!name){ alert('이름을 입력하세요'); return; }
+    if(!roomId){ alert('먼저 세션에 접속하세요'); return; }
+    me = { id: randomId(), name };
+    await db.collection('rooms').doc(roomId).collection('responses').doc(me.id).set({
+      name, joinedAt: firebase.firestore.FieldValue.serverTimestamp(), answers:{}
+    }, { merge:true });
+    statusText.textContent = `${name} 님, 참가 완료!`;
+  });
+
+  // Build form
+  btnBuildForm.addEventListener('click', ()=>{
+    const n = clamp(parseInt(questionCount.value||'3',10),1,20);
+    builder.innerHTML = '';
+    for(let i=0;i<n;i++) builder.appendChild(buildQuestionRow(i+1));
+  });
+
+  // Load sample
+  btnLoadSample.addEventListener('click', ()=>{
+    quizTitle.value = '샘플 퀴즈';
+    questionCount.value = 3;
+    builder.innerHTML = '';
+    const samples = [
+      {type:'mcq', text:'태양계에서 가장 큰 행성은?', options:['지구','목성','화성','금성'], answerIndex:1},
+      {type:'short', text:'물의 끓는점(°C)은?', answerText:'100'},
+      {type:'mcq', text:'바다의 소금기는 어디서 올까요?', options:['소금산','강물의 광물질','하늘','바람'], answerIndex:1}
+    ];
+    samples.forEach((q,idx)=>builder.appendChild(buildQuestionRow(idx+1,q)));
+  });
+
+  // Save quiz
+  btnSaveQuiz.addEventListener('click', async ()=>{
+    if(!roomId){ alert('세션을 먼저 연결하세요.'); return; }
+    const payload = collectQuizFromBuilder();
+    if(payload.questions.length===0){ alert('문항을 추가하세요.'); return; }
+    await db.collection('rooms').doc(roomId).set({
+      title: payload.title,
+      mode: 'idle', // idle | active | ended
+      currentIndex: -1,
+      accept: false,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      questions: payload.questions
+    }, { merge:true });
+    alert('퀴즈 저장 완료! 진행 탭에서 시작하세요.');
+  });
+
+  // Control buttons
+  btnStart.addEventListener('click', ()=> updateRoom({ mode:'active', currentIndex:0, accept:true }));
+  btnStop.addEventListener('click', ()=> updateRoom({ mode:'ended', accept:false }));
+  btnPrev.addEventListener('click', ()=> stepIndex(-1));
+  btnNext.addEventListener('click', ()=> stepIndex(1));
+  toggleAccept.addEventListener('change', ()=> updateRoom({ accept: !!toggleAccept.checked }));
+
+  // Subjective submit
+  btnSubmitSubjective.addEventListener('click', ()=>{
+    const val = (subjectiveInput.value||'').trim();
+    if(!val){ alert('답을 입력하세요'); return; }
+    submitAnswer(val);
+  });
+
+  // Option click (delegation)
+  optionsContainer.addEventListener('click', e=>{
+    const btn = e.target.closest('[data-opt]');
+    if(!btn) return;
+    const idx = parseInt(btn.dataset.opt,10);
+    submitAnswer(idx);
+  });
+
+  // Export CSV
+  btnExportCSV.addEventListener('click', async ()=>{
+    if(!roomId) return;
+    const roomSnap = await db.collection('rooms').doc(roomId).get();
+    const room = roomSnap.data();
+    const resSnap = await db.collection('rooms').doc(roomId).collection('responses').get();
+    const rows = [];
+    const header = ['userId','name', ...room.questions.map((q,i)=>`Q${i+1}`), 'score'];
+    rows.push(header.join(','));
+    resSnap.forEach(doc=>{
+      const d = doc.data();
+      let score = 0;
+      const answers = room.questions.map((q,i)=>{
+        const a = d.answers?.[i];
+        if(a?.correct) score++;
+        return escapeCsv(a?.value ?? '');
+      });
+      rows.push([doc.id, escapeCsv(d.name), ...answers, score].join(','));
+    });
+    downloadFile(`${room.title||roomId}-results.csv`, rows.join('\n'));
+  });
+
+  // Firestore helpers
+  async function ensureRoomExists(id){
+    const ref = db.collection('rooms').doc(id);
+    const snap = await ref.get();
+    if(!snap.exists){
+      await ref.set({ title:'새 세션', mode:'idle', currentIndex:-1, accept:false, questions:[] });
+    }
+  }
+  function listenRoom(id){
+    if(unsubRoom) unsubRoom();
+    unsubRoom = db.collection('rooms').doc(id).onSnapshot(snap=>{
+      if(!snap.exists) return;
+      const r = snap.data();
+      renderRoom(r);
+    });
+  }
+  function listenResponses(id){
+    if(unsubResponses) unsubResponses();
+    unsubResponses = db.collection('rooms').doc(id).collection('responses').onSnapshot(snap=>{
+      const arr = [];
+      snap.forEach(d=>arr.push({ id:d.id, ...d.data() }));
+      renderResponses(arr);
+    });
+  }
+  async function updateRoom(patch){
+    if(!roomId) return;
+    await db.collection('rooms').doc(roomId).set(patch, { merge:true });
+  }
+  async function stepIndex(delta){
+    const ref = db.collection('rooms').doc(roomId);
+    await db.runTransaction(async (tx)=>{
+      const snap = await tx.get(ref);
+      const r = snap.data();
+      const n = (r.currentIndex ?? -1) + delta;
+      const max = (r.questions?.length||0) - 1;
+      const next = clamp(n, 0, Math.max(0,max));
+      tx.set(ref, { currentIndex: next, accept:true }, { merge:true });
+    });
+  }
+
+  // Rendering
+  function renderRoom(r){
+    statusText.textContent = `세션: ${roomId} · 상태: ${r.mode}`;
+
+    if(MODE==='teacher'){
+      toggleAccept.checked = !!r.accept;
+      const q = r.questions?.[r.currentIndex];
+      ctlQuestion.textContent = q ? `${r.currentIndex+1}. ${q.text}` : '-';
+      shortGrader.classList.toggle('hidden', !(q && q.type==='short'));
+      if(q && q.type==='short') buildShortAnswerList(r);
+    }
+
+    if(MODE==='student'){
+      const idx = r.currentIndex;
+      const q = r.questions?.[idx];
+      if(r.mode!=='active' || !q){
+        studentQuiz.classList.remove('hidden');
+        questionText.textContent = '대기 중입니다…';
+        optionsContainer.innerHTML = '';
+        subjectiveBox.classList.add('hidden');
+        progressText.textContent = '0 / 0';
+        quizTypeBadge.textContent = '대기';
+        return;
+      }
+      const total = r.questions.length;
+      progressText.textContent = `${idx+1} / ${total}`;
+      questionText.textContent = q.text;
+      quizTypeBadge.textContent = q.type==='mcq' ? '객관식' : '주관식';
+      answerState.textContent = '';
+
+      if(q.type==='mcq'){
+        subjectiveBox.classList.add('hidden');
+        optionsContainer.innerHTML = '';
+        (q.options||[]).forEach((opt,i)=>{
+          const div = document.createElement('button');
+          div.className = 'option';
+          div.textContent = opt;
+          div.dataset.opt = String(i);
+          div.disabled = !r.accept;
+          optionsContainer.appendChild(div);
+        });
+      }else{
+        optionsContainer.innerHTML = '';
+        subjectiveBox.classList.remove('hidden');
+        subjectiveInput.value = '';
+        btnSubmitSubjective.disabled = !r.accept;
+      }
+    }
+  }
+
+  function renderResponses(arr){
+    if(MODE==='teacher'){
+      chips.innerHTML = '';
+      arr.forEach(x=>{
+        const el = document.createElement('div');
+        el.className = 'chip';
+        el.textContent = x.name || x.id;
+        chips.appendChild(el);
+      });
+      buildShortAnswerListCached(arr);
+      buildResults(arr);
+    }
+
+    if(MODE==='student' && me.id){
+      const mine = arr.find(x=>x.id===me.id);
+      if(!mine) return;
+      const currentIdx = window.__lastRoom?.currentIndex;
+      const ans = mine.answers?.[currentIdx];
+      qsa('.option').forEach((el,i)=>{
+        el.classList.remove('selected','correct','wrong');
+        if(ans && typeof ans.value==='number'){
+          if(i===ans.value) el.classList.add('selected');
+          if(ans.revealed){
+            if(ans.correct && i===ans.value) el.classList.add('correct');
+            if(!ans.correct && i===ans.value) el.classList.add('wrong');
+          }
+        }
+      });
+      if(ans && typeof ans.value==='string'){
+        answerState.textContent = ans.revealed ? (ans.correct? '정답!':'오답') : `제출: ${ans.value}`;
+      }
+    }
+  }
+
+  function buildShortAnswerList(room){
+    window.__lastRoom = room;
+    if(!roomId) return;
+    db.collection('rooms').doc(roomId).collection('responses').get().then(snap=>{
+      const arr=[]; snap.forEach(d=>arr.push({ id:d.id, ...d.data() }));
+      buildShortAnswerListCached(arr);
+    });
+  }
+  function buildShortAnswerListCached(arr){
+    if(MODE!=='teacher') return;
+    const room = window.__lastRoom;
+    if(!room) return;
+    const q = room.questions?.[room.currentIndex];
+    if(!q || q.type!=='short') return;
+    shortAnswers.innerHTML='';
+    arr.forEach(s=>{
+      const a = s.answers?.[room.currentIndex];
+      if(!a || typeof a.value!=='string') return;
+      const row = document.createElement('div');
+      row.className = 'row';
+      const left = document.createElement('div');
+      left.textContent = `${s.name}: ${a.value}`;
+      const right = document.createElement('div');
+      const ok = document.createElement('button'); ok.className='btn ghost'; ok.textContent='정답';
+      const no = document.createElement('button'); no.className='btn ghost'; no.textContent='오답';
+      ok.addEventListener('click', ()=> gradeAnswer(s.id, room.currentIndex, true));
+      no.addEventListener('click', ()=> gradeAnswer(s.id, room.currentIndex, false));
+      right.appendChild(ok); right.appendChild(no);
+      row.appendChild(left); row.appendChild(right);
+      shortAnswers.appendChild(row);
+    });
+  }
+
+  async function gradeAnswer(userId, qIndex, correct){
+    const ref = db.collection('rooms').doc(roomId).collection('responses').doc(userId);
+    await ref.set({ [`answers.${qIndex}.correct`]: !!correct, [`answers.${qIndex}.revealed`]: true }, { merge:true });
+  }
+
+  async function submitAnswer(value){
+    if(!me.id){ alert('먼저 참가하세요'); return; }
+    const roomSnap = await db.collection('rooms').doc(roomId).get();
+    const r = roomSnap.data();
+    if(!r.accept){ alert('현재 제출이 허용되지 않습니다.'); return; }
+    const idx = r.currentIndex;
+    const q = r.questions?.[idx];
+    if(!q){ return; }
+    let correct = null;
+    if(q.type==='mcq' && typeof value==='number'){
+      correct = (value === (q.answerIndex ?? -999));
+    } else if(q.type==='short' && typeof value==='string'){
+      const norm = s=>String(s).trim().toLowerCase();
+      if(q.answerText) correct = (norm(value)===norm(q.answerText));
+    }
+    await db.collection('rooms').doc(roomId).collection('responses').doc(me.id).set({
+      name: me.name,
+      [`answers.${idx}`]: { value, correct: (correct===true), revealed: (q.type==='mcq') }
+    }, { merge:true });
+  }
+
+  function buildResults(arr){
+    if(MODE!=='teacher') return;
+    const room = window.__lastRoom; if(!room) return;
+    const qList = room.questions||[];
+    chips.innerHTML='';
+    arr.forEach(s=>{
+      const chip = document.createElement('div');
+      const a = s.answers?.[room.currentIndex];
+      chip.className = 'chip ' + (a ? (a.correct? 'ok':'no') : '');
+      chip.textContent = s.name || s.id;
+      chips.appendChild(chip);
+    });
+
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    const htr = document.createElement('tr');
+    ;['이름', ...qList.map((_,i)=>`Q${i+1}`), '점수'].forEach(h=>{
+      const th=document.createElement('th'); th.textContent=h; htr.appendChild(th);
+    });
+    thead.appendChild(htr); table.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    arr.forEach(s=>{
+      const tr=document.createElement('tr');
+      const tdName=document.createElement('td'); tdName.textContent=s.name||s.id; tr.appendChild(tdName);
+      let score=0;
+      qList.forEach((q,i)=>{
+        const td=document.createElement('td');
+        const a=s.answers?.[i];
+        if(a){
+          const ok = !!a.correct; if(ok) score++;
+          td.textContent = q.type==='mcq' ? (typeof a.value==='number' ? String(a.value+1) : '-') : (a.value||'-');
+        } else { td.textContent='-'; }
+        tr.appendChild(td);
+      });
+      const tdScore=document.createElement('td'); tdScore.textContent=String(score); tr.appendChild(tdScore);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    resultsContainer.innerHTML='';
+    resultsContainer.appendChild(table);
+  }
+
+  function buildQuestionRow(no, q){
+    const wrap = document.createElement('div');
+    wrap.className='card';
+    wrap.innerHTML = `
+      <div class="row wrap" style="gap:16px">
+        <div style="min-width:120px"><span class="badge">${no}번</span></div>
+        <label class="row gap"><input type="radio" name="type-${no}" value="mcq" ${q?.type==='short'?'':'checked'}> 객관식</label>
+        <label class="row gap"><input type="radio" name="type-${no}" value="short" ${q?.type==='short'?'checked':''}> 주관식</label>
+      </div>
+      <div class="row wrap" style="margin-top:8px">
+        <input class="q-text" data-no="${no}" placeholder="문항 내용" value="${escapeHtml(q?.text||'')}" style="flex:1" />
+      </div>
+      <div class="mcq ${q?.type==='short'?'hidden':''}">
+        <div class="row wrap" style="margin-top:8px;flex-wrap:wrap;gap:8px">
+          ${(q?.options||['','','','']).map((v,i)=>`<input class="opt" data-no="${no}" data-idx="${i}" placeholder="보기 ${i+1}" value="${escapeHtml(v)}" style="width:240px" />`).join('')}
+        </div>
+        <div class="row wrap" style="margin-top:8px">
+          <label>정답 번호</label>
+          <input class="ansIndex" data-no="${no}" type="number" min="1" max="10" value="${(q?.answerIndex ?? 0)+1}" style="width:100px" />
+        </div>
+      </div>
+      <div class="short ${q?.type==='short'?'':'hidden'}" style="margin-top:8px">
+        <input class="ansText" data-no="${no}" placeholder="정답(선택, 자동채점용)" value="${escapeHtml(q?.answerText||'')}" style="width:300px" />
+      </div>
+    `;
+    const radios = qsa(`input[name="type-${no}"]`, wrap);
+    const mcq = qs('.mcq', wrap);
+    const short = qs('.short', wrap);
+    radios.forEach(r=> r.addEventListener('change', ()=>{
+      const isShort = radios.find(x=>x.checked)?.value==='short';
+      mcq.classList.toggle('hidden', isShort);
+      short.classList.toggle('hidden', !isShort);
+    }));
+    return wrap;
+  }
+
+  function collectQuizFromBuilder(){
+    const title = (quizTitle.value||'퀴즈');
+    const cards = qsa('#builder > .card');
+    const questions = cards.map((card,idx)=>{
+      const no = idx+1;
+      const type = card.querySelector(`input[name="type-${no}"]:checked`).value;
+      const text = card.querySelector('.q-text').value.trim();
+      if(!text) return null;
+      if(type==='mcq'){
+        const opts = qsa('.opt', card).map(x=>x.value.trim()).filter(Boolean);
+        const ansIndexRaw = parseInt(card.querySelector('.ansIndex').value,10);
+        const ansIndex = clamp((isNaN(ansIndexRaw)?1:ansIndexRaw)-1,0,Math.max(0,opts.length-1));
+        return { type:'mcq', text, options:opts.length?opts:['보기 1','보기 2'], answerIndex:ansIndex };
+      } else {
+        const answerText = card.querySelector('.ansText').value.trim();
+        return { type:'short', text, answerText };
+      }
+    }).filter(Boolean);
+    return { title, questions };
+  }
+
+  function randomId(){ return Math.random().toString(36).slice(2,10); }
+  function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
+  function escapeHtml(s=''){ return s.replace(/[&<>\"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
+  function escapeCsv(v){ if(v==null) return ''; const s=String(v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
+  function downloadFile(filename, content){
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([content],{type:'text/csv'}));
+    a.download=filename; a.click(); URL.revokeObjectURL(a.href);
+  }
+
+  const origRenderRoom = renderRoom;
+  renderRoom = function(r){ window.__lastRoom = r; origRenderRoom(r); };
+
+  setMode('student');
+})();
+</script>
+</body>
 </html>
