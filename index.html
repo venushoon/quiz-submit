@@ -2,13 +2,9 @@
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>실시간 퀴즈</title>
 
-    <!-- 기본 스타일 (가독성 향상) -->
     <style>
       :root {
         --bg:#0e1621; --panel:#121c28; --muted:#7f9bb3; --text:#e8f0f7;
@@ -47,11 +43,22 @@
       .tabs {display:flex; gap:8px; margin:10px 0 16px;}
       .tab {padding:8px 14px; border-radius:10px; border:1px solid var(--bd); background:#0b1220; cursor:pointer;}
       .tab.active {background:var(--brand); color:#fff; border-color:transparent;}
+      table {width:100%; border-collapse:collapse; font-size:14px;}
+      th, td {border-bottom:1px solid var(--bd); padding:10px; text-align:left;}
+      th {color:#a6c0da; font-weight:600;}
+      .option {padding:10px 12px; border:1px solid var(--bd); background:#0b1220; border-radius:12px; cursor:pointer; text-align:left;}
+      .option.selected {outline:2px solid var(--accent);}
+      .option.correct {background:#0c2a16; border-color:#175f3a;}
+      .option.wrong {background:#2a0c11; border-color:#6b1b27;}
     </style>
 
-    <!-- QRCode 라이브러리(CDN) -->
+    <!-- QRCode (CDN) -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-    <!-- 앱 스크립트 -->
+    <!-- Firebase compat SDKs (v9) -->
+    <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+    <!-- App -->
     <script src="./app.js" type="module" defer></script>
   </head>
   <body>
@@ -71,10 +78,8 @@
         </div>
       </div>
 
-      <!-- 본문: 왼쪽(관리/진행/결과) + 오른쪽(접속 안내/QR/가이드) -->
       <div class="grid grid-2" style="margin-top:16px">
         <main>
-          <!-- 탭 -->
           <div class="tabs">
             <button class="tab active" data-tab="build">문항 만들기</button>
             <button class="tab" data-tab="control">진행</button>
@@ -86,9 +91,7 @@
             <!-- 문항 만들기 -->
             <div id="tab-build">
               <div class="section-title">
-                <div class="row">
-                  <span class="badge">관리자 · 문항</span>
-                </div>
+                <div class="row"><span class="badge">관리자 · 문항</span></div>
                 <div class="row">
                   <button id="btnLoadSample" class="btn ghost">샘플 불러오기</button>
                   <button id="btnSaveQuiz" class="btn">저장</button>
@@ -135,7 +138,6 @@
 
                 <div id="chips" class="row" style="margin-top:10px; flex-wrap:wrap; gap:6px"></div>
 
-                <!-- 주관식 정오표시/수동채점 -->
                 <div id="shortGrader" class="hidden" style="margin-top:10px">
                   <div class="muted" style="margin-bottom:6px">주관식 답안</div>
                   <div id="shortAnswers" class="grid"></div>
@@ -184,9 +186,7 @@
         <!-- 오른쪽 사이드: QR & 링크 & 가이드 -->
         <aside class="grid" style="gap:16px">
           <section class="panel">
-            <div class="section-title">
-              <span class="badge">학생용 접속 QR</span>
-            </div>
+            <div class="section-title"><span class="badge">학생용 접속 QR</span></div>
             <div id="qrBox" class="qr-wrap"><div class="muted">QR 준비 중</div></div>
             <div class="row" style="margin-top:8px">
               <input id="studentLinkInput" placeholder="학생 접속 링크" />
@@ -196,9 +196,7 @@
           </section>
 
           <section class="panel">
-            <div class="section-title">
-              <span class="badge">사용 가이드</span>
-            </div>
+            <div class="section-title"><span class="badge">사용 가이드</span></div>
             <div class="muted" style="font-size:13px; line-height:1.45">
               <p>1) 관리자에서 <b>세션 코드</b> 입력 → <b>접속</b></p>
               <p>2) <b>문항 만들기</b>에서 문제를 작성 후 <b>저장</b></p>
