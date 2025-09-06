@@ -4,9 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>실시간 퀴즈</title>
+
+  <!-- app.css를 루트에 파일로 반드시 두세요. (404 방지) -->
   <link rel="stylesheet" href="./app.css" />
+
   <!-- QRCode (canvas) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
+
   <!-- Firebase v9 (모듈형 CDN) -->
   <script type="module" src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js"></script>
   <script type="module" src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js"></script>
@@ -128,7 +132,7 @@
         <div id="resultsTable" class="tablewrap"></div>
       </div>
 
-      <!-- 학생 UI(같은 페이지에서 확인용) -->
+      <!-- 학생 UI -->
       <div id="studentPanel" class="card hide">
         <div class="row">
           <input id="studentName" class="input" placeholder="이름(번호)" />
@@ -156,10 +160,9 @@
           <li>세션코드 입력 → <b>접속</b> (다음부터 자동 재접속)</li>
           <li><b>문항 만들기</b>에서 문항 작성 → <b>저장</b></li>
           <li><b>진행</b> 탭: <b>시작</b> → <b>제출 허용</b> 체크</li>
-          <li>타이머 사용 시 종료 후 자동 제출 막기/자동 다음(옵션)</li>
-          <li>골든벨 ON: 오답자 자동 탈락</li>
-          <li><b>프레젠테이션</b> 탭: 화면으로 학생들과 함께 보기</li>
-          <li><b>결과</b> 탭: 채점/CSV/JSON 저장, 전체 초기화</li>
+          <li>타이머 사용 시 끝나면 자동 제출 막기 + 자동 다음</li>
+          <li><b>프레젠테이션</b>: 화면과 함께 풀이</li>
+          <li><b>결과</b>: 채점/CSV·JSON 저장/전체 초기화</li>
         </ul>
       </div>
 
@@ -167,15 +170,15 @@
         <h4>🦊 학생 가이드</h4>
         <ul>
           <li>링크/QR 접속 → 이름 입력 → <b>참가</b></li>
-          <li>문제 화면에서 보기를 선택 후 <b>제출</b></li>
-          <li>골든벨 ON: 오답 시 탈락</li>
+          <li>문제에서 보기 선택 또는 답 입력 → <b>제출</b></li>
         </ul>
       </div>
     </aside>
   </main>
 
-  <footer class="foot">Made for classroom · 동기화/저장은 Firestore</footer>
+  <footer class="foot">Made for classroom · Firestore 동기화</footer>
 
+  <!-- JS는 문서 끝에서 (DOM 준비 후 바인딩) -->
   <script type="module" src="./app.js"></script>
 </body>
 </html>
