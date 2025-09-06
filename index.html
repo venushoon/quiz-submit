@@ -4,81 +4,71 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>실시간 퀴즈</title>
-
     <style>
       :root {
-        --bg:#0e1621; --panel:#121c28; --muted:#7f9bb3; --text:#e8f0f7;
-        --brand:#5a6cff; --accent:#6ae3ff; --danger:#ff6b6b; --ok:#4ade80;
-        --bd:#223246; --chip:#192638;
+        --bg:#0f1720; --panel:#111a22; --line:#1e2937; --txt:#dbe7ff; --muted:#8aa0bd;
+        --pri:#5b6cff; --ok:#1cc88a; --bad:#ff6b6b; --chip:#1b2635;
       }
-      html,body {margin:0; height:100%; background:var(--bg); color:var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;}
-      .container {max-width:1100px; margin:0 auto; padding:24px;}
-      h1 {font-size:28px; margin:0 0 12px;}
-      .row {display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
-      .panel {background:var(--panel); border:1px solid var(--bd); border-radius:16px; padding:16px;}
-      .grid {display:grid; gap:16px;}
-      @media (min-width: 980px){ .grid-2 {grid-template-columns: 1.2fr 1fr;} }
-
-      input,textarea,select,button {
-        background:#0b1220; color:var(--text); border:1px solid var(--bd);
-        border-radius:10px; padding:10px 12px; outline:none;
-      }
-      input::placeholder, textarea::placeholder {color:#92a6bb90;}
-      input:focus, textarea:focus, select:focus {box-shadow:0 0 0 2px #5a6cff55; border-color:#5a6cff;}
-      .btn {cursor:pointer; background:var(--brand); border:none; color:#fff; padding:10px 14px; border-radius:12px; font-weight:600}
-      .btn.ghost {background:#0b1220;}
-      .btn.ok {background:var(--ok); color:#07210f}
-      .btn.danger {background:var(--danger)}
-      .muted {color:var(--muted)}
-      .chip {background:var(--chip); border:1px solid var(--bd); padding:6px 10px; border-radius:999px; font-size:12px;}
-      .badge {background:#1b2a3c; border:1px solid var(--bd); padding:3px 8px; border-radius:8px; color:#a6c0da;}
-
-      .toolbar {gap:8px; margin:12px 0}
-      .field {display:flex; gap:8px; width:100%;}
-      .field > * {flex:1}
-      .section-title {display:flex; align-items:center; justify-content:space-between; margin-bottom:8px}
-      .hint {font-size:12px; color:var(--muted)}
-      .hidden {display:none !important;}
-      .qr-wrap {background:#0b1220; border:1px dashed var(--bd); border-radius:12px; display:grid; place-items:center; height:220px;}
-      .tabs {display:flex; gap:8px; margin:10px 0 16px;}
-      .tab {padding:8px 14px; border-radius:10px; border:1px solid var(--bd); background:#0b1220; cursor:pointer;}
-      .tab.active {background:var(--brand); color:#fff; border-color:transparent;}
-      table {width:100%; border-collapse:collapse; font-size:14px;}
-      th, td {border-bottom:1px solid var(--bd); padding:10px; text-align:left;}
-      th {color:#a6c0da; font-weight:600;}
-      .option {padding:10px 12px; border:1px solid var(--bd); background:#0b1220; border-radius:12px; cursor:pointer; text-align:left;}
-      .option.selected {outline:2px solid var(--accent);}
-      .option.correct {background:#0c2a16; border-color:#175f3a;}
-      .option.wrong {background:#2a0c11; border-color:#6b1b27;}
+      *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.45 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto}
+      .container{max-width:1200px;margin:0 auto;padding:18px}
+      h1{margin:0 0 6px 0;font-size:28px}
+      .muted{color:var(--muted)}
+      .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px}
+      .row{display:flex;align-items:center;gap:10px}
+      .toolbar input, .panel input, .panel select, .panel textarea{background:#0b1220;border:1px solid var(--line);color:var(--txt);padding:8px 10px;border-radius:10px;outline:none}
+      .btn{background:var(--pri);color:#fff;border:none;padding:8px 14px;border-radius:10px;cursor:pointer}
+      .btn.ghost{background:#0b1220;border:1px solid var(--line)}
+      .btn.danger{background:var(--bad)}
+      .btn:disabled{opacity:.5;cursor:not-allowed}
+      .tabs{display:flex;gap:8px;margin-bottom:10px}
+      .tab{padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:#0b1220;color:var(--txt);cursor:pointer}
+      .tab.active{background:var(--pri)}
+      .hidden{display:none}
+      .grid{display:grid;gap:14px}
+      .grid-2{grid-template-columns:1fr 360px}
+      .badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#0b1220;border:1px solid var(--line);color:var(--muted)}
+      #chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+      .chip{background:var(--chip);border:1px solid var(--line);padding:6px 10px;border-radius:999px}
+      .chip.out{color:#bbb;border-color:#3a4457;text-decoration:line-through}
+      table{width:100%;border-collapse:collapse;margin-top:10px}
+      th,td{border-bottom:1px solid var(--line);padding:10px;text-align:center}
+      th{text-align:center;color:#9fb3d9}
+      #qrBox{display:grid;place-items:center;height:230px;background:#0b1220;border:1px dashed var(--line);border-radius:12px;margin-bottom:8px}
+      #questionArea .option{display:block;width:100%;text-align:left;margin:6px 0;padding:10px 12px;border-radius:10px;background:#0b1220;border:1px solid var(--line);cursor:pointer}
+      #questionArea .option.selected{border-color:var(--pri)}
+      #questionArea .option.correct{background:#0e2a20;border-color:#1da36d}
+      #questionArea .option.wrong{background:#2a0f14;border-color:#b24a4a}
+      .note{font-size:12px;color:#8aa0bd}
+      .right-col .panel .title{display:flex;justify-content:space-between;align-items:center}
+      .kbd{background:#0b1220;border:1px solid var(--line);padding:2px 6px;border-radius:6px}
+      @media (max-width:960px){.grid-2{grid-template-columns:1fr}}
     </style>
 
-    <!-- QRCode (CDN) -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-    <!-- Firebase compat SDKs (v9) -->
+    <!-- Firebase compat SDKs -->
     <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
-    <!-- App -->
-    <script src="./app.js" type="module" defer></script>
+    <!-- QRCode (전역: window.QRCode) -->
+    <script defer src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   </head>
   <body>
     <div class="container">
       <h1>실시간 퀴즈</h1>
 
-      <!-- 상단: 세션 연결 & 모드 전환 -->
+      <!-- 연결/모드 -->
       <div class="panel">
         <div class="row toolbar">
-          <label class="badge">세션 코드</label>
+          <span class="badge">세션 코드</span>
           <input id="roomIdInput" placeholder="예: classA" style="max-width:220px" />
           <button id="btnConnect" class="btn">접속</button>
-          <span id="statusText" class="muted">세션에 접속해 주세요.</span>
+          <span id="statusText" class="muted">관리자 모드: 세션을 연결해 주세요.</span>
           <div style="flex:1"></div>
           <button id="btnTeacherMode" class="btn ghost">관리자</button>
           <button id="btnStudentMode" class="btn ghost">학생</button>
         </div>
       </div>
 
-      <div class="grid grid-2" style="margin-top:16px">
+      <div class="grid grid-2">
+        <!-- ===== 왼쪽: 본패널 ===== -->
         <main>
           <div class="tabs">
             <button class="tab active" data-tab="build">문항 만들기</button>
@@ -90,123 +80,136 @@
           <section id="teacherPanel" class="panel">
             <!-- 문항 만들기 -->
             <div id="tab-build">
-              <div class="section-title">
-                <div class="row"><span class="badge">관리자 · 문항</span></div>
+              <div class="row" style="justify-content:space-between">
                 <div class="row">
+                  <span class="badge">제목</span>
+                  <input id="quizTitle" placeholder="퀴즈 제목" style="width:220px" />
+                  <span class="badge">문항수</span>
+                  <input id="questionCount" type="number" min="1" max="20" value="3" style="width:80px" />
+                  <button id="btnBuildForm" class="btn ghost">빈 폼 만들기</button>
                   <button id="btnLoadSample" class="btn ghost">샘플 불러오기</button>
+                </div>
+                <div class="row">
                   <button id="btnSaveQuiz" class="btn">저장</button>
+                  <button id="btnExportRoomJSON" class="btn ghost">JSON 저장</button>
+                  <label class="btn ghost" style="cursor:pointer">
+                    JSON 불러오기
+                    <input id="loadRoomJSON" type="file" accept="application/json" style="display:none">
+                  </label>
                 </div>
               </div>
-
-              <div class="field" style="margin:8px 0">
-                <input id="quizTitle" placeholder="퀴즈 제목" />
-                <input id="questionCount" type="number" min="1" max="20" value="3" style="max-width:120px" />
-                <button id="btnBuildForm" class="btn ghost">빈폼 만들기</button>
-              </div>
-
-              <div id="builder" class="grid" style="margin-top:8px"></div>
+              <div id="builder" class="panel" style="margin-top:10px"></div>
             </div>
 
             <!-- 진행 -->
             <div id="tab-control" class="hidden">
-              <div class="section-title">
-                <span class="badge">관리자 · 진행</span>
+              <div class="row" style="flex-wrap:wrap;gap:12px">
+                <label class="row" style="gap:6px"><input type="checkbox" id="toggleAccept" /> 제출 허용</label>
+                <label class="row" style="gap:6px"><input type="checkbox" id="toggleGoldenbell" /> 골든벨 모드</label>
+                <label class="row" style="gap:6px">
+                  정책
+                  <select id="submitPolicy">
+                    <option value="device">기기당 1회</option>
+                    <option value="name">실명당 1회</option>
+                  </select>
+                </label>
+                <label class="row" style="gap:6px">
+                  타이머(초)
+                  <input id="timerSec" type="number" min="0" value="30" style="width:80px" />
+                  <button id="btnTimerStart" class="btn ghost">타이머 시작</button>
+                  <button id="btnTimerStop" class="btn ghost">타이머 정지</button>
+                  <span class="badge">남은 시간 <span id="leftTime">00:00</span></span>
+                </label>
                 <div class="row">
-                  <label class="row" style="gap:6px">
-                    <input type="checkbox" id="toggleAccept" />
-                    <span class="muted">제출 허용</span>
-                  </label>
                   <button id="btnStart" class="btn">시작</button>
                   <button id="btnPrev" class="btn ghost">이전</button>
                   <button id="btnNext" class="btn ghost">다음</button>
                   <button id="btnStop" class="btn danger">종료</button>
                 </div>
+                <div class="row">
+                  <button id="btnOpenPresent" class="btn ghost">프레젠테이션 화면 열기</button>
+                </div>
               </div>
 
-              <div class="panel" style="margin-top:8px">
-                <div class="row" style="justify-content:space-between">
-                  <div>
-                    <div class="muted">현재 문항</div>
-                    <div id="ctlQuestion" style="font-weight:700; margin-top:4px">-</div>
-                  </div>
-                  <div class="row" style="gap:8px">
-                    <span class="chip">정답: <span id="chipOk">0</span></span>
-                    <span class="chip">오답: <span id="chipNo">0</span></span>
-                    <span class="chip">대기: <span id="chipWait">0</span></span>
-                  </div>
-                </div>
+              <div class="panel" style="margin-top:12px">
+                <div class="row"><span class="badge">현재:</span><span id="ctlQuestion">-</span></div>
+                <div id="chips" class="chips"></div>
+              </div>
 
-                <div id="chips" class="row" style="margin-top:10px; flex-wrap:wrap; gap:6px"></div>
-
-                <div id="shortGrader" class="hidden" style="margin-top:10px">
-                  <div class="muted" style="margin-bottom:6px">주관식 답안</div>
-                  <div id="shortAnswers" class="grid"></div>
-                </div>
+              <!-- 주관식 채점 -->
+              <div class="panel hidden" id="shortGrader">
+                <div class="row"><span class="badge">주관식 채점</span></div>
+                <div id="shortAnswers"></div>
               </div>
             </div>
 
             <!-- 결과 -->
             <div id="tab-results" class="hidden">
-              <div class="row" style="justify-content:space-between">
-                <span class="badge">관리자 · 결과</span>
-                <div class="row">
-                  <button id="btnExportCSV" class="btn ghost">CSV 내보내기</button>
-                  <button id="btnResetAll" class="btn danger">전체 초기화</button>
-                </div>
+              <div class="row" style="gap:8px">
+                <button id="btnExportCSV" class="btn ghost">CSV 내보내기</button>
+                <button id="btnResetAll" class="btn danger">전체 초기화</button>
               </div>
-              <div id="resultsContainer" class="panel" style="margin-top:10px; overflow:auto"></div>
+              <div id="resultsContainer"></div>
             </div>
           </section>
 
-          <!-- 학생 화면 -->
-          <section id="studentPanel" class="panel hidden" style="margin-top:16px">
-            <div class="row" style="justify-content:space-between">
-              <span class="badge">학생</span>
-              <span class="muted" id="progressText">0 / 0</span>
+          <!-- 학생 패널 -->
+          <section id="studentPanel" class="panel hidden">
+            <div class="row" style="gap:10px;flex-wrap:wrap">
+              <span class="badge">이름</span>
+              <input id="studentName" placeholder="예: 홍길동" style="width:200px" />
+              <button id="btnJoin" class="btn">참가</button>
+              <span class="muted" id="joinedHint"></span>
             </div>
-
-            <div style="margin-top:8px; font-weight:700" id="questionText">대기 중입니다…</div>
-            <div class="muted" id="quizTypeBadge" style="margin:4px 0 10px">대기</div>
-
-            <div id="optionsContainer" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:8px"></div>
-
-            <div id="subjectiveBox" class="hidden row" style="margin-top:8px">
-              <input id="subjectiveInput" placeholder="답을 입력하세요" />
-              <button id="btnSubmitSubjective" class="btn">제출</button>
-            </div>
-
-            <div class="row" style="margin-top:8px">
-              <input id="studentName" placeholder="이름(또는 번호)" style="max-width:220px" />
-              <button id="btnJoin" class="btn ghost">참가</button>
-              <span id="answerState" class="muted"></span>
+            <div class="panel" id="questionArea" style="margin-top:12px">
+              <div class="row" style="justify-content:space-between;align-items:center">
+                <div class="row">
+                  <span class="badge">진행</span><span id="progressText">0 / 0</span>
+                </div>
+                <span class="badge" id="quizTypeBadge">대기</span>
+              </div>
+              <h3 id="questionText" style="margin:10px 0 6px">대기 중입니다…</h3>
+              <div id="optionsContainer"></div>
+              <div id="subjectiveBox" class="hidden">
+                <div class="row" style="gap:8px">
+                  <input id="subjectiveInput" placeholder="답을 입력하세요" style="flex:1" />
+                  <button id="btnSubmitSubjective" class="btn">제출</button>
+                </div>
+              </div>
+              <div class="note" id="answerState"></div>
+              <div class="note">※ 객관식도 <span class="kbd">제출</span> 버튼이 표시됩니다.</div>
             </div>
           </section>
         </main>
 
-        <!-- 오른쪽 사이드: QR & 링크 & 가이드 -->
-        <aside class="grid" style="gap:16px">
+        <!-- ===== 오른쪽: 접속/QR/가이드 ===== -->
+        <aside class="right-col">
           <section class="panel">
-            <div class="section-title"><span class="badge">학생용 접속 QR</span></div>
-            <div id="qrBox" class="qr-wrap"><div class="muted">QR 준비 중</div></div>
-            <div class="row" style="margin-top:8px">
-              <input id="studentLinkInput" placeholder="학생 접속 링크" />
-              <button id="btnCopy" class="btn">링크 복사</button>
-              <button id="btnOpenStudent" class="btn ghost">학생 모드로 열기</button>
+            <div class="title">
+              <span class="badge">학생용 접속 QR</span>
+              <button id="btnCopy" class="btn ghost">링크 복사</button>
             </div>
+            <div id="qrBox"></div>
+            <input id="studentLinkInput" readonly />
+            <div class="note">링크/QR은 세션에 맞춰 자동 갱신됩니다.</div>
+            <div class="note" style="margin-top:6px">정책: <b>기기당 1회</b>가 기본이며, “실명당 1회”로 바꾸면 같은 이름으로 1번만 제출됩니다.</div>
           </section>
 
           <section class="panel">
-            <div class="section-title"><span class="badge">사용 가이드</span></div>
-            <div class="muted" style="font-size:13px; line-height:1.45">
-              <p>1) 관리자에서 <b>세션 코드</b> 입력 → <b>접속</b></p>
-              <p>2) <b>문항 만들기</b>에서 문제를 작성 후 <b>저장</b></p>
-              <p>3) <b>진행</b> 탭에서 <b>시작</b>, 필요 시 <b>제출 허용</b> 체크</p>
-              <p>4) 학생은 QR/링크로 접속하여 <b>참가</b> → 답안 제출</p>
-              <p>5) <b>결과</b> 탭에서 CSV로 내보내기 가능</p>
-            </div>
+            <div class="title"><span class="badge">사용 가이드</span></div>
+            <ul class="note" style="margin:6px 0 0 16px;line-height:1.5">
+              <li><b>문항 만들기</b>: 빈 폼 또는 샘플 불러오기 → 저장</li>
+              <li><b>진행</b>: 시작 → 제출 허용/타이머 → 다음/이전</li>
+              <li><b>골든벨</b>: 오답 즉시 탈락, 결과/칩에 표시</li>
+              <li><b>프레젠테이션</b>: 큰 화면으로 문제 공유</li>
+              <li><b>결과</b>: CSV, 전체 초기화, JSON 저장/불러오기</li>
+            </ul>
           </section>
         </aside>
       </div>
     </div>
+
+    <!-- 메인 로직 -->
+    <script type="module" src="./app.js"></script>
   </body>
 </html>
