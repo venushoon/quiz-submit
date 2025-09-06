@@ -1,26 +1,39 @@
-name: Deploy static site to Pages
+name: Deploy static site to GitHub Pages
+
 on:
   push:
-    branches: [ main ]
+    branches: [ main ]     # 기본 브랜치명에 맞게 조정
+  workflow_dispatch:       # 필요 시 수동 실행
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
 jobs:
   deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 그대로 루트의 index.html 등을 아티팩트로 올립니다.
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./
+          # 루트에 index.html이 있으므로 그대로 둡니다.
+          # 만약 /public 폴더 아래라면 ./public 로 바꾸세요.
+          path: .
 
       - name: Deploy to GitHub Pages
-        id: deploy
+        id: deployment
         uses: actions/deploy-pages@v4
