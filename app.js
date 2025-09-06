@@ -22,7 +22,7 @@ const $  = (s,el=document)=>el.querySelector(s);
 const $$ = (s,el=document)=>Array.from(el.querySelectorAll(s));
 const pad = (n)=>String(n).padStart(2,'0');
 
-let MODE   = "admin";           // 'admin' | 'student'
+let MODE   = "admin";           // 'admin' | 'student'  ← 기본을 'admin'으로
 let roomId = "";
 let me     = { id:null, name:"" };
 let unsubRoom=null, unsubResp=null;
@@ -63,6 +63,7 @@ const els = {
 
   // results
   chips: $("#chips"), shortAnswers: $("#shortAnswers"), resultsTable: $("#resultsTable"),
+  leaderboard: $("#leaderboard"), goldenBell: $("#goldenBell"),
   btnExportCSV: $("#btnExportCSV"), btnSaveJSON: $("#btnSaveJSON"), fileLoad: $("#fileLoad"),
   btnResetAll: $("#btnResetAll"),
 
@@ -82,7 +83,8 @@ function saveLocal(){ localStorage.setItem("quiz.live", JSON.stringify({ roomId,
 function loadLocal(){
   try{
     const d=JSON.parse(localStorage.getItem("quiz.live")||"{}");
-    roomId=d.roomId||""; MODE=d.MODE||"admin"; me=d.me||{id:null,name:""};
+    roomId=d.roomId||""; /* MODE는 URL 우선 정책으로 강제 설정하므로 여기서 복원하지 않음 */
+    me=d.me||{id:null,name:""};
     if(roomId && els.roomId) els.roomId.value=roomId;
   }catch{}
 }
@@ -278,7 +280,7 @@ function stopTimer(){ if(timerHandle){ clearInterval(timerHandle); timerHandle=n
 async function join(){
   if(!roomId) return alert("세션에 먼저 접속하세요.");
   const name=(els.studentName?.value||"").trim(); if(!name) return alert("이름을 입력하세요.");
-  // 정책에 따라 id 결정: device 정책이면 기기 고정 id, name 정책이면 이름으로 id
+  // 정책에 따라 id 결정
   const r=(await getDoc(roomRef(roomId))).data()||{};
   let id;
   if(r.policy==="name"){
@@ -295,7 +297,6 @@ async function join(){
 async function submitChoice(){
   if(selectedChoiceIndex==null) return alert("보기를 선택하세요.");
   await submit(selectedChoiceIndex);
-  // 제출 후 버튼 비활성화
   els.btnSubmitChoice && (els.btnSubmitChoice.disabled=true);
 }
 async function submit(value){
@@ -313,6 +314,58 @@ async function submit(value){
 }
 async function grade(uid, qIndex, ok){
   await setDoc(doc(respCol(roomId), uid), { [`answers.${qIndex}.correct`]: !!ok, [`answers.${qIndex}.revealed`]: true }, { merge:true });
+}
+
+/***********************
+ * GoldenBell(탈락/부활) & Leaderboard
+ ***********************/
+async function setAlive(uid, alive){
+  await setDoc(doc(respCol(roomId), uid), { alive: !!alive }, { merge:true });
+}
+function computeScores(room, list){
+  const qs = room.questions||[];
+  return list.map(s=>{
+    let score=0;
+    qs.forEach((q,i)=>{ if(s.answers?.[i]?.correct) score++; });
+    return { id:s.id, name:s.name||s.id, score, alive: s.alive!==false };
+  });
+}
+function renderLeaderboardSorted(room, list){
+  if(!els.leaderboard) return;
+  const rows = computeScores(room, list)
+    .sort((a,b)=> b.score-a.score || (a.name||'').localeCompare(b.name||''));
+  const tbl=document.createElement("table");
+  const thead=document.createElement("thead"), tr=document.createElement("tr");
+  ["순위","이름","점수","상태"].forEach(h=>{ const th=document.createElement("th"); th.textContent=h; tr.appendChild(th); });
+  thead.appendChild(tr); tbl.appendChild(thead);
+  const tb=document.createElement("tbody");
+  rows.forEach((x,i)=>{
+    const tr=document.createElement("tr");
+    [i+1, x.name, x.score, x.alive?"alive":"out"].forEach(v=>{
+      const td=document.createElement("td"); td.textContent=String(v); tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  });
+  tbl.appendChild(tb);
+  els.leaderboard.innerHTML=""; els.leaderboard.appendChild(tbl);
+}
+function renderGoldenBell(room, list){
+  if(!els.goldenBell) return;
+  els.goldenBell.innerHTML="";
+  const rows = computeScores(room, list)
+    .sort((a,b)=> (a.alive===b.alive? 0 : a.alive?-1:1) || (a.name||'').localeCompare(b.name||''));
+  rows.forEach(x=>{
+    const row=document.createElement("div"); row.className="row between";
+    const left=document.createElement("div"); left.textContent=`${x.name} · ${x.alive?"alive":"out"}`;
+    const right=document.createElement("div");
+    const btnOut=document.createElement("button"); btnOut.className="btn ghost"; btnOut.textContent="탈락";
+    const btnRev=document.createElement("button"); btnRev.className="btn ghost"; btnRev.textContent="부활";
+    btnOut.onclick=()=>setAlive(x.id,false);
+    btnRev.onclick=()=>setAlive(x.id,true);
+    right.append(btnOut,btnRev);
+    row.append(left,right);
+    els.goldenBell.appendChild(row);
+  });
 }
 
 /***********************
@@ -347,9 +400,8 @@ function renderRoom(r){
     }
   }
 
-  // 학생 화면 (프레젠테이션 그대로 노출하지 않음 — 학생 전용 뷰)
+  // 학생 화면
   if(MODE==='student'){
-    // 초기화
     selectedChoiceIndex = null;
     if(els.btnSubmitChoice) els.btnSubmitChoice.disabled = true;
 
@@ -372,10 +424,8 @@ function renderRoom(r){
         b.addEventListener("click", ()=>{
           if(!r.accept) return;
           selectedChoiceIndex = i;
-          // 선택 표시
           $$(".optbtn", els.sMcqBox).forEach(x=>x.classList.remove("sel"));
           b.classList.add("sel");
-          // 제출 버튼 활성화
           if(els.btnSubmitChoice) els.btnSubmitChoice.disabled=false;
         });
         els.sMcqBox.appendChild(b);
@@ -422,7 +472,11 @@ function renderResponses(list){
     }
   }
 
-  // 결과표
+  // 리더보드 + 골든벨
+  renderLeaderboardSorted(r, list);
+  renderGoldenBell(r, list);
+
+  // 전체 결과표
   if(els.resultsTable){
     const tbl=document.createElement("table");
     const thead=document.createElement("thead"), tr=document.createElement("tr");
@@ -454,8 +508,6 @@ function buildStudentLink(){
   url.searchParams.set("role","student");
   url.searchParams.set("room", roomId);
   if(els.studentLink) els.studentLink.value = url.toString();
-
-  // QR은 옵션 저장 후 노출
   if(els.qrCanvas && window.QRCode && els.studentLink?.value){
     try{ window.QRCode.toCanvas(els.qrCanvas, els.studentLink.value, { width:192 }, ()=>{}); }catch(e){}
   }
@@ -522,7 +574,6 @@ els.btnSaveOptions?.addEventListener("click", async ()=>{
   const reveal   = !!els.chkReveal?.checked;
   const sec      = Math.max(5, Math.min(600, parseInt(els.timerSec?.value,10)||30));
   await setDoc(roomRef(roomId), { policy, autoNext, accept, reveal, timerSec:sec }, { merge:true });
-  // QR/링크 노출
   buildStudentLink();
   els.qrBox?.classList.remove("hide");
   alert("옵션 저장 완료!");
@@ -535,13 +586,13 @@ els.btnCopyLink?.addEventListener("click", async ()=>{
 });
 els.btnOpenStudent?.addEventListener("click", ()=> window.open(els.studentLink?.value||"#","_blank"));
 
-// 진행 버튼 (프레젠테이션)
+// 진행 (프레젠테이션)
 els.btnStart?.addEventListener("click", startQuiz);
 els.btnPrev?.addEventListener("click", ()=>step(-1));
 els.btnNext?.addEventListener("click", ()=>step(+1));
 els.btnEndAll?.addEventListener("click", finishAll);
 
-// 제출 허용 / 공개 토글은 실시간 반영
+// 제출 허용/공개
 els.chkAccept?.addEventListener("change", ()=> roomId && updateDoc(roomRef(roomId), { accept: !!els.chkAccept.checked }));
 els.chkReveal?.addEventListener("change", ()=> roomId && updateDoc(roomRef(roomId), { reveal: !!els.chkReveal.checked }));
 
@@ -601,17 +652,21 @@ els.btnSubmitChoice?.addEventListener("click", submitChoice);
 /***********************
  * Boot
  ***********************/
-function autoReconnect(){
+function boot(){
+  // 1) 저장된 세션코드만 복원 (MODE는 무조건 admin으로 시작)
   loadLocal();
-  setMode(MODE);
+  // 2) URL이 학생 모드이면 학생으로, 아니면 ‘항상 관리자’로 시작  ← #1 요구사항
+  const url=new URL(location.href);
+  const role=url.searchParams.get("role");
+  if(role==='student') setMode("student"); else setMode("admin");
+  // 3) roomId가 있으면 자동 연결
   if(roomId) connect();
 }
-autoReconnect();
+boot();
 
-// URL로 바로 학생 모드 열기: ?role=student&room=class1
+// 별도: 직접 학생 링크로 진입 시에도 동작
 (function fromURL(){
   const url=new URL(location.href);
-  const role=url.searchParams.get("role"); const rid=url.searchParams.get("room");
-  if(role==='student') setMode("student");
-  if(rid){ els.roomId && (els.roomId.value=rid); connect(); }
+  const rid=url.searchParams.get("room");
+  if(rid){ els.roomId && (els.roomId.value=rid); roomId=rid; connect(); }
 })();
