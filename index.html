@@ -2,277 +2,180 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>실시간 퀴즈</title>
-
-  <style>
-    :root{
-      --bg:#0f1623; --panel:#141c2b; --card:#101828; --muted:#93a0b8; --text:#e7edf6;
-      --pri:#5b6fff; --ok:#19c37d; --warn:#ffb020; --bad:#ff5d5d; --chip:#1b2540; --accent:#7f8aff;
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0;background:var(--bg);color:var(--text);
-      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,Malgun Gothic,sans-serif;
-      font-size:14px; line-height:1.45;
-    }
-    .wrap{max-width:1200px;margin:0 auto;padding:16px}
-    .row{display:flex;gap:10px;align-items:center}
-    .col{display:flex;flex-direction:column;gap:10px}
-    .panel{background:var(--panel);border:1px solid #1d2740;border-radius:12px;padding:14px}
-    .card{background:var(--card);border:1px solid #1b2340;border-radius:10px;padding:12px}
-    .grid{display:grid;gap:12px}
-    .g2{grid-template-columns:1fr 340px}
-    @media (max-width:1024px){ .g2{grid-template-columns:1fr} }
-    h1{font-size:22px;margin:0 0 2px}
-    h2{font-size:15px;margin:0 0 6px;color:#cfe1ff}
-    label.small{font-size:12px;color:var(--muted)}
-    input,select,textarea{
-      background:#0c1321;border:1px solid #243050;border-radius:9px;color:var(--text);
-      padding:8px 10px;outline:none; font-size:13px;
-    }
-    input:focus,select:focus,textarea:focus{border-color:var(--accent)}
-    .btn{border:1px solid #2b3760;background:#111a2f;color:#e6ecff;border-radius:9px;padding:7px 12px;font-weight:600;cursor:pointer;font-size:13px}
-    .btn:hover{background:#17223a}
-    .btn.pri{background:var(--pri);border-color:var(--pri);color:#fff}
-    .btn.ok{background:var(--ok);border-color:var(--ok);color:#042214}
-    .btn.bad{background:#2b0f14;border-color:#531a24;color:#ffd6db}
-    .btn.ghost{background:transparent;border-color:#2b385f}
-    .tag{background:#1a2240;color:#cfe1ff;border:1px solid #26305a;border-radius:999px;padding:3px 8px;font-size:12px}
-    .chip{background:var(--chip);border:1px solid #263661;border-radius:999px;padding:6px 9px;font-size:12px}
-    .muted{color:var(--muted)}
-    .hidden{display:none!important}
-    .table{width:100%;border-collapse:separate;border-spacing:0;border-radius:10px;border:1px solid #28345b;overflow:hidden}
-    .table th,.table td{padding:8px 10px;border-bottom:1px solid #22305a;text-align:center}
-    .table th{background:#141d31;color:#c8d5ff;font-weight:700}
-    .pill{border-radius:999px;padding:2px 8px;font-size:12px;border:1px solid #2a365f;background:#132040}
-    .pill.ok{background:#0d2a20;border-color:#234f3d;color:#7fffd1}
-    .pill.bad{background:#2a1620;border-color:#5a2c3f;color:#ffd0d0}
-    .big{font-size:28px;font-weight:800}
-    .qrBox{display:grid;place-items:center;background:#0c1425;border:1px dashed #2a355a;border-radius:10px;height:200px}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
-    .help{font-size:12px;color:#a9b6d8;line-height:1.55;padding:10px;border:1px solid #22305a;border-radius:10px;background:#0e1628}
-    .help h3{margin:8px 0 6px;font-size:12px;color:#cfe1ff;display:flex;gap:6px;align-items:center}
-    .help .kbd{border:1px solid #2b365f;background:#0f1930;border-radius:6px;padding:0 6px;font-size:11px}
-    .present{background:#040a18;border:1px solid #2a355a;border-radius:10px;padding:12px}
-    .present h2{font-size:18px}
-    .option{border:1px solid #2d3a62;background:#0f1730;color:#dae7ff;border-radius:9px;padding:8px 10px;cursor:pointer}
-    .option.selected{border-color:#7f8cff;background:#1b2450}
-    .option.correct{border-color:#24e39a;box-shadow:0 0 0 2px #24e39a33 inset}
-    .option.wrong{border-color:#ff6b6b;box-shadow:0 0 0 2px #ff6b6b33 inset}
-  </style>
-
-  <!-- Firebase (옵션) -->
-  <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <!-- QR 라이브러리 -->
-  <script defer src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <!-- 앱 스크립트 -->
-  <script defer src="./app.js"></script>
+  <link rel="stylesheet" href="./app.css" />
+  <!-- QRCode (canvas) -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
+  <!-- Firebase v9 (모듈형 CDN) -->
+  <script type="module" src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js"></script>
+  <script type="module" src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js"></script>
 </head>
 <body>
-  <div class="wrap">
-    <!-- 헤더(타이틀/연결 + 가이드) -->
-    <div class="grid g2">
-      <div>
-        <div class="row" style="gap:8px;flex-wrap:wrap">
-          <span class="tag">LIVE</span>
-          <span class="muted">세션</span>
-          <input id="roomIdInput" class="mono" placeholder="예: classA" style="width:200px" />
-          <button id="btnConnect" class="btn pri">접속</button>
-          <button id="btnTeacherMode" class="btn">관리자</button>
-          <button id="btnStudentMode" class="btn ghost">학생</button>
-        </div>
-        <h1 style="margin-top:6px">실시간 퀴즈</h1>
-        <div id="statusText" class="muted">관리자 모드: 세션을 연결해 주세요.</div>
-      </div>
+  <header class="top">
+    <div class="brand">실시간 퀴즈</div>
 
-      <aside class="help">
-        <h3>📘 교사용 가이드</h3>
-        <ul style="margin:0 0 6px 16px;padding:0">
-          <li>세션코드 입력 → <span class="kbd">접속</span> (다음 접속부터 자동 재접속)</li>
-          <li><span class="kbd">문항 만들기</span>에서 작성 → <span class="kbd">저장</span></li>
-          <li><span class="kbd">진행</span> 탭: <span class="kbd">시작</span> 후 <span class="kbd">제출 허용</span> 체크</li>
-          <li><span class="kbd">타이머 시작</span> (시간 종료 시 자동 공개/자동 다음)</li>
-          <li>골든벨 ON: 오답자 자동 탈락</li>
-          <li><span class="kbd">프레젠테이션</span> 화면으로 함께 보기</li>
-          <li><span class="kbd">결과</span>: 채점/CSV, 전체 초기화</li>
-        </ul>
-        <h3>🦊 학생 가이드</h3>
-        <ul style="margin:0 0 0 16px;padding:0">
-          <li>링크/QR 접속 → 이름 입력 → <span class="kbd">참가</span></li>
-          <li>문제에서 답 선택/입력 → <span class="kbd">제출</span></li>
-          <li>골든벨 ON: 오답 시 탈락 표시</li>
-        </ul>
-      </aside>
+    <div class="room">
+      <span class="pill live">LIVE</span>
+      <label class="label">세션</label>
+      <input id="roomId" class="input sm" placeholder="예: class1" />
+      <button id="btnConnect" class="btn primary sm">접속</button>
+      <button id="btnAdmin" class="btn dark sm" title="관리자 모드">관리자</button>
+      <button id="btnStudent" class="btn dark sm" title="학생 모드">학생</button>
+      <span id="roomStatus" class="hint">세션에 접속해 주세요.</span>
     </div>
+  </header>
 
-    <!-- 관리자 -->
-    <section id="teacherPanel" class="panel" style="margin-top:12px">
-      <div class="row" style="flex-wrap:wrap">
-        <button data-tab="build" class="btn pri tab">문항 만들기</button>
-        <button data-tab="control" class="btn ghost tab">진행</button>
-        <button data-tab="results" class="btn ghost tab">결과</button>
-        <button data-tab="present" class="btn ghost tab">프레젠테이션</button>
-        <div class="muted" id="policyText" style="margin-left:auto"></div>
+  <main class="grid">
+    <!-- 좌측: 컨트롤/빌더/결과 -->
+    <section>
+      <div class="tabs">
+        <button id="tabBuild" class="tab">문항 만들기</button>
+        <button id="tabControl" class="tab success">진행</button>
+        <button id="tabPresent" class="tab info">프레젠테이션</button>
+        <button id="tabResults" class="tab warn">결과</button>
       </div>
 
-      <!-- 문항 만들기 -->
-      <section id="tab-build" class="grid g2" style="margin-top:10px">
-        <div class="col">
-          <div class="card">
-            <h2>퀴즈 기본</h2>
-            <div class="row" style="flex-wrap:wrap">
-              <label class="small">제목</label>
-              <input id="quizTitle" value="우리 반 실시간 퀴즈" style="flex:1;min-width:180px" />
-              <label class="small">문항 수</label>
-              <input id="questionCount" type="number" min="1" max="20" value="3" style="width:80px" />
-              <button id="btnBuildForm" class="btn">빈 폼</button>
-              <button id="btnLoadSample" class="btn ghost">샘플</button>
-            </div>
-            <div class="row" style="flex-wrap:wrap">
-              <label class="small">제출 정책</label>
-              <select id="policySelect">
-                <option value="device" selected>기기당 1회</option>
-                <option value="name">실명당 1회</option>
-              </select>
-              <label class="small">골든벨</label>
-              <input id="goldenBellToggle" type="checkbox" />
-            </div>
-          </div>
-
-          <div id="builder" class="col"></div>
-
-          <div class="row" style="flex-wrap:wrap">
-            <button id="btnSaveQuiz" class="btn pri">저장</button>
-            <button id="btnExportJSON" class="btn ghost">JSON 저장</button>
-            <input id="fileImport" type="file" accept="application/json" class="hidden" />
-            <button id="btnImportJSON" class="btn ghost">불러오기</button>
-          </div>
+      <!-- 빌더 -->
+      <div id="panelBuild" class="card hide">
+        <div class="row">
+          <input id="quizTitle" class="input" placeholder="퀴즈 제목" />
+          <input id="questionCount" class="input xs" type="number" min="1" max="20" value="3" />
+          <button id="btnBuildForm" class="btn">빈 폼 만들기</button>
+          <button id="btnLoadSample" class="btn">샘플 넣기</button>
+          <button id="btnSaveQuiz" class="btn primary">저장</button>
         </div>
-
-        <div class="col">
-          <div class="card">
-            <h2>학생 접속</h2>
-            <div id="qrBox" class="qrBox"></div>
-            <div class="row" style="margin-top:8px">
-              <label class="small">링크</label>
-              <input id="studentLinkInput" class="mono" style="flex:1" readonly />
-              <button id="btnCopy" class="btn">복사</button>
-              <a id="btnOpenStudent" class="btn ghost" target="_blank">학생 화면</a>
-            </div>
-          </div>
-        </div>
-      </section>
+        <div id="builder" class="stack"></div>
+      </div>
 
       <!-- 진행 -->
-      <section id="tab-control" class="hidden" style="margin-top:10px">
-        <div class="grid g2">
-          <div class="card col">
-            <div class="row" style="flex-wrap:wrap;gap:8px">
-              <button id="btnStart" class="btn pri">시작</button>
-              <button id="btnPrev" class="btn">이전</button>
-              <button id="btnNext" class="btn">다음</button>
-              <label class="row" style="gap:6px"><input id="toggleAccept" type="checkbox" /> 제출 허용</label>
-              <label class="row" style="gap:6px"><input id="toggleReveal" type="checkbox" /> 결과 공개</label>
-            </div>
+      <div id="panelControl" class="card">
+        <div class="row wrap">
+          <button id="btnStart" class="btn success">시작</button>
+          <button id="btnPrev" class="btn">이전</button>
+          <button id="btnNext" class="btn success">다음</button>
 
-            <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:6px">
-              <label class="small">타이머(초)</label>
-              <input id="timerSec" type="number" min="5" max="600" value="30" style="width:90px" />
-              <button id="btnTimerStart" class="btn">타이머 시작</button>
-              <button id="btnTimerStop" class="btn ghost">정지</button>
-              <label class="row" style="gap:6px"><input id="autoNextToggle" type="checkbox" /> 자동 다음</label>
-              <div class="muted">남은 시간: <span id="remainTime" class="pill">00:00</span></div>
-            </div>
+          <label class="switch">
+            <input id="chkAccept" type="checkbox" />
+            <span>제출 허용</span>
+          </label>
 
-            <div class="row" style="gap:16px;margin-top:6px">
-              <div>제목: <span id="ctlTitle" class="pill">-</span></div>
-              <div>문항: <span id="ctlIdx" class="pill">-</span></div>
-              <div>참가: <span id="ctlJoin" class="pill">0</span></div>
-            </div>
+          <label class="switch">
+            <input id="chkReveal" type="checkbox" />
+            <span>결과 공개</span>
+          </label>
 
-            <div id="ctlQuestion" class="card" style="min-height:68px"></div>
+          <div class="row gap">
+            <span class="hint">타이머(초)</span>
+            <input id="timerSec" class="input xs" type="number" min="5" max="600" value="30" />
+            <button id="btnTimerGo" class="btn info">타이머 시작</button>
+            <button id="btnTimerStop" class="btn">타이머 정지</button>
+            <span class="count" id="leftSec">00:00</span>
+          </div>
 
-            <div id="shortGrader" class="card hidden">
-              <h2>주관식 채점</h2>
-              <div id="shortAnswers" class="col"></div>
+          <button id="btnEndAll" class="btn warn">퀴즈 종료</button>
+        </div>
+
+        <div class="nowq row">
+          <div>현재: <b id="nowQuestion">-</b></div>
+          <div class="hint">진행 <span id="progress">0/0</span></div>
+        </div>
+
+        <div class="split">
+          <div class="card">
+            <h4>학생용 링크/QR</h4>
+            <canvas id="qrCanvas" class="qr"></canvas>
+            <div class="row">
+              <input id="studentLink" class="input" readonly />
+              <button id="btnCopyLink" class="btn">링크 복사</button>
+              <button id="btnOpenStudent" class="btn primary">학생 화면 열기</button>
             </div>
           </div>
 
           <div class="card">
-            <h2>진행 현황</h2>
-            <div class="row" id="chips" style="flex-wrap:wrap"></div>
-            <div class="row" style="gap:8px;margin-top:8px">
-              <span class="pill ok">정답</span>
-              <span class="pill bad">오답</span>
-              <span class="pill">미제출</span>
-              <span class="pill">탈락</span>
-            </div>
+            <h4>제출 현황</h4>
+            <div id="chips" class="chips"></div>
+            <div id="shortAnswers" class="stack sm"></div>
           </div>
         </div>
-      </section>
-
-      <!-- 결과 -->
-      <section id="tab-results" class="hidden" style="margin-top:10px">
-        <div class="row" style="gap:8px;margin-bottom:8px">
-          <button id="btnExportCSV" class="btn ghost">CSV 내보내기</button>
-          <button id="btnResetAll" class="btn bad">전체 초기화</button>
-        </div>
-        <table class="table" id="resultsTable">
-          <thead><tr id="resultsHead"></tr></thead>
-          <tbody id="resultsBody"></tbody>
-        </table>
-      </section>
+      </div>
 
       <!-- 프레젠테이션 -->
-      <section id="tab-present" class="hidden" style="margin-top:10px">
+      <div id="panelPresent" class="card hide">
         <div class="present">
-          <div class="row" style="justify-content:space-between;align-items:center">
-            <h2 id="pptTitle">-</h2>
-            <div class="muted" id="pptSub">-</div>
-          </div>
-          <div id="pptQuestion" style="font-size:18px;margin:8px 0 6px">-</div>
-          <div id="pptOptions" class="col"></div>
-          <div class="row" style="gap:10px;margin-top:10px">
-            <div>제출: <span id="pptSubmit" class="pill">0</span></div>
-            <div>정답: <span id="pptOk" class="pill ok">0</span></div>
-            <div>오답: <span id="pptBad" class="pill bad">0</span></div>
-            <div>탈락: <span id="pptOut" class="pill">0</span></div>
+          <div class="title" id="pTitle">-</div>
+          <div class="qtext" id="pQ">대기 중…</div>
+          <div class="opts" id="pOpts"></div>
+          <div class="legend">
+            <span class="dot ok"></span>정답자
+            <span class="dot no"></span>오답자
+            <span class="dot wait"></span>미제출
           </div>
         </div>
-      </section>
-    </section>
-
-    <!-- 학생 -->
-    <section id="joinCard" class="panel hidden" style="margin-top:12px">
-      <div class="row" style="gap:10px;align-items:flex-end;flex-wrap:wrap">
-        <div class="col" style="min-width:220px">
-          <label class="small">이름(실명)</label>
-          <input id="studentName" placeholder="예: 김하늘" />
-        </div>
-        <button id="btnJoin" class="btn pri">참가</button>
-        <div id="answerState" class="muted"></div>
       </div>
 
-      <div id="studentQuiz" class="col" style="margin-top:12px">
-        <div class="row" style="gap:10px;align-items:center">
-          <span id="quizTypeBadge" class="tag">대기</span>
-          <span id="questionText" class="big">대기 중입니다…</span>
-          <span id="progressText" class="muted">0 / 0</span>
-          <span class="muted">남은 시간: <span id="sRemain" class="pill">00:00</span></span>
+      <!-- 결과 -->
+      <div id="panelResults" class="card hide">
+        <div class="row">
+          <button id="btnExportCSV" class="btn">CSV 내보내기</button>
+          <button id="btnResetAll" class="btn warn">전체 초기화</button>
+          <button id="btnSaveJSON" class="btn">JSON 저장</button>
+          <label class="btn">
+            불러오기
+            <input id="fileLoad" type="file" accept="application/json" hidden />
+          </label>
         </div>
-        <div id="optionsContainer" class="col" style="margin-top:8px"></div>
-        <div id="subjectiveBox" class="row hidden" style="gap:8px;margin-top:8px">
-          <input id="subjectiveInput" placeholder="정답 입력" style="flex:1" />
-          <button id="btnSubmitSubjective" class="btn pri">제출</button>
+        <div id="resultsTable" class="tablewrap"></div>
+      </div>
+
+      <!-- 학생 UI(같은 페이지에서 확인용) -->
+      <div id="studentPanel" class="card hide">
+        <div class="row">
+          <input id="studentName" class="input" placeholder="이름(번호)" />
+          <button id="btnJoin" class="btn primary">참가</button>
         </div>
-        <div class="row" style="gap:8px;margin-top:8px">
-          <button id="btnSubmitMCQ" class="btn pri hidden">선택 제출</button>
+
+        <div id="studentQ" class="stack">
+          <div class="hint" id="badgeType">대기</div>
+          <div class="qtext" id="sQText">대기 중입니다…</div>
+          <div id="mcqBox" class="opts"></div>
+          <div id="shortBox" class="row hide">
+            <input id="shortInput" class="input" placeholder="정답 입력" />
+            <button id="btnShortSend" class="btn success">제출</button>
+          </div>
+          <div class="hint" id="answerState"></div>
         </div>
       </div>
     </section>
-  </div>
+
+    <!-- 우측: 가이드 -->
+    <aside>
+      <div id="guideAdmin" class="guide">
+        <h4>📘 교사용 가이드</h4>
+        <ul>
+          <li>세션코드 입력 → <b>접속</b> (다음부터 자동 재접속)</li>
+          <li><b>문항 만들기</b>에서 문항 작성 → <b>저장</b></li>
+          <li><b>진행</b> 탭: <b>시작</b> → <b>제출 허용</b> 체크</li>
+          <li>타이머 사용 시 종료 후 자동 제출 막기/자동 다음(옵션)</li>
+          <li>골든벨 ON: 오답자 자동 탈락</li>
+          <li><b>프레젠테이션</b> 탭: 화면으로 학생들과 함께 보기</li>
+          <li><b>결과</b> 탭: 채점/CSV/JSON 저장, 전체 초기화</li>
+        </ul>
+      </div>
+
+      <div id="guideStudent" class="guide hide">
+        <h4>🦊 학생 가이드</h4>
+        <ul>
+          <li>링크/QR 접속 → 이름 입력 → <b>참가</b></li>
+          <li>문제 화면에서 보기를 선택 후 <b>제출</b></li>
+          <li>골든벨 ON: 오답 시 탈락</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="foot">Made for classroom · 동기화/저장은 Firestore</footer>
+
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
