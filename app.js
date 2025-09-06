@@ -22,17 +22,21 @@ const $  = (s,el=document)=>el.querySelector(s);
 const $$ = (s,el=document)=>Array.from(el.querySelectorAll(s));
 const pad = (n)=>String(n).padStart(2,'0');
 
-let MODE   = "admin";           // 'admin' | 'student'  ← 기본을 'admin'으로
+let MODE   = "admin";           // 'admin' | 'student' (기본 admin)
 let roomId = "";
 let me     = { id:null, name:"" };
 let unsubRoom=null, unsubResp=null;
 let timerHandle=null;
 let selectedChoiceIndex = null; // 학생 객관식 선택값
+let lastResponses = [];         // 최신 응답 캐시(통계/리더보드/골든벨/발표모드에 재사용)
 
 const els = {
   // header
+  livePill: $("#livePill"),
   roomName: $("#roomName"), roomState: $("#roomState"),
   adminControls: $("#adminControls"), studentJoinBox: $("#studentJoinBox"),
+  studentJoinRow: $("#studentJoinRow"), studentJoinedRow: $("#studentJoinedRow"),
+  studentHeaderRoom: $("#studentHeaderRoom"), studentHeaderName: $("#studentHeaderName"),
   roomId: $("#roomId"), btnConnect: $("#btnConnect"),
   btnAdmin: $("#btnAdmin"), btnStudent: $("#btnStudent"),
   studentName: $("#studentName"), btnJoin: $("#btnJoin"),
@@ -50,6 +54,7 @@ const els = {
 
   // options
   chkPolicyDevice: $("#chkPolicyDevice"), chkPolicyName: $("#chkPolicyName"),
+  styleNormal: $("#styleNormal"), styleBell: $("#styleBell"),
   chkAccept: $("#chkAccept"), chkReveal: $("#chkReveal"),
   chkAutoNext: $("#chkAutoNext"), timerSec: $("#timerSec"),
   btnSaveOptions: $("#btnSaveOptions"),
@@ -60,18 +65,22 @@ const els = {
   btnStart: $("#btnStart"), btnPrev: $("#btnPrev"), btnNext: $("#btnNext"), btnEndAll: $("#btnEndAll"),
   leftSec: $("#leftSec"), btnTimerGo: $("#btnTimerGo"), btnTimerStop: $("#btnTimerStop"),
   pTitle: $("#pTitle"), pQ: $("#pQ"), pOpts: $("#pOpts"), progress: $("#progress"),
+  statParticipants: $("#statParticipants"), statSubmitted: $("#statSubmitted"),
+  statCorrect: $("#statCorrect"), statWrong: $("#statWrong"),
 
   // results
   chips: $("#chips"), shortAnswers: $("#shortAnswers"), resultsTable: $("#resultsTable"),
   leaderboard: $("#leaderboard"), goldenBell: $("#goldenBell"),
   btnExportCSV: $("#btnExportCSV"), btnSaveJSON: $("#btnSaveJSON"), fileLoad: $("#fileLoad"),
-  btnResetAll: $("#btnResetAll"),
+  btnResetAll: $("#btnResetAll"), btnLBPresent: $("#btnLBPresent"),
+  lbOverlay: $("#lbOverlay"), btnLBExit: $("#btnLBExit"), lbOverlayTable: $("#lbOverlayTable"),
 
   // student view
   studentPanel: $("#studentPanel"),
   sTitle: $("#sTitle"), sQText: $("#sQText"), sTimer: $("#sTimer"),
   sMcqBox: $("#sMcqBox"), sShortBox: $("#sShortBox"), shortInput: $("#shortInput"),
   btnShortSend: $("#btnShortSend"), btnSubmitChoice: $("#btnSubmitChoice"), submitHint: $("#submitHint"),
+  toast: $("#toast"),
 };
 
 Object.keys(els).forEach(k=>{ if(!els[k]) console.warn("[missing]",k); });
@@ -83,8 +92,7 @@ function saveLocal(){ localStorage.setItem("quiz.live", JSON.stringify({ roomId,
 function loadLocal(){
   try{
     const d=JSON.parse(localStorage.getItem("quiz.live")||"{}");
-    roomId=d.roomId||""; /* MODE는 URL 우선 정책으로 강제 설정하므로 여기서 복원하지 않음 */
-    me=d.me||{id:null,name:""};
+    roomId=d.roomId||""; me=d.me||{id:null,name:""};
     if(roomId && els.roomId) els.roomId.value=roomId;
   }catch{}
 }
@@ -99,8 +107,12 @@ async function ensureRoom(id){
   const snap=await getDoc(roomRef(id));
   if(!snap.exists()){
     await setDoc(roomRef(id), {
-      title:"새 세션", mode:"idle", currentIndex:-1, accept:false, reveal:false,
-      policy:"device", autoNext:false, timerSec:30, createdAt: serverTimestamp(), questions:[]
+      title:"새 세션", mode:"idle", currentIndex:-1,
+      accept:false, reveal:false,
+      policy:"device",
+      style:"normal",            // normal | goldenbell
+      autoNext:false, timerSec:30,
+      createdAt: serverTimestamp(), questions:[]
     });
   }
 }
@@ -116,7 +128,10 @@ function listenResponses(id){
   if(unsubResp) unsubResp();
   unsubResp=onSnapshot(respCol(id),(qs)=>{
     const arr=[]; qs.forEach(d=>arr.push({ id:d.id, ...d.data() }));
+    lastResponses = arr;
     renderResponses(arr);
+    renderPresentStats(); // 통계 갱신
+    if(!els.lbOverlay?.classList.contains("hide")) renderLeaderboardOverlay();
   });
 }
 
@@ -141,8 +156,7 @@ function setMode(m){
 
   // 헤더 상태
   els.roomName && (els.roomName.textContent = `세션: ${roomId||'-'}`);
-  els.roomState && (els.roomState.className = `state ${roomId?'on':'off'}`);
-  els.roomState && (els.roomState.textContent = roomId? "온라인":"오프라인");
+  updateOnlineUI(!!roomId);
 
   // 기본 활성 탭
   if(m==='admin'){
@@ -153,23 +167,31 @@ function setMode(m){
   saveLocal();
 }
 
+function updateOnlineUI(connected){
+  els.roomState && (els.roomState.className = `state ${connected?'on':'off'}`);
+  els.roomState && (els.roomState.textContent = connected? "온라인":"오프라인");
+  els.livePill?.classList.toggle("onair", connected); // 연결 시 빨간 LIVE
+}
+
 async function connect(){
   const id=(els.roomId?.value||"").trim();
   if(!id){ alert("세션 코드를 입력하세요."); return; }
   roomId=id; await ensureRoom(roomId);
   listenRoom(roomId); listenResponses(roomId);
   els.roomName && (els.roomName.textContent = `세션: ${roomId}`);
-  els.roomState && (els.roomState.className = "state on");
-  els.roomState && (els.roomState.textContent = "온라인");
+  updateOnlineUI(true);
   saveLocal();
   // 옵션 로드 → 토글값 반영
   const r=(await getDoc(roomRef(roomId))).data();
   if(r){
     (r.policy==="name" ? els.chkPolicyName : els.chkPolicyDevice).checked = true;
+    (r.style==="goldenbell" ? els.styleBell : els.styleNormal).checked = true;
     if(els.chkAutoNext) els.chkAutoNext.checked = !!r.autoNext;
     if(els.chkAccept)   els.chkAccept.checked   = !!r.accept;
     if(els.chkReveal)   els.chkReveal.checked   = !!r.reveal;
     if(els.timerSec)    els.timerSec.value      = String(r.timerSec ?? 30);
+    buildStudentLink();
+    els.qrBox?.classList.remove("hide");
   }
 }
 
@@ -264,6 +286,7 @@ function startTimer(sec){
   timerHandle=setInterval(async ()=>{
     const remain=Math.max(0, Math.floor((end-Date.now())/1000));
     els.leftSec && (els.leftSec.textContent = `${pad(Math.floor(remain/60))}:${pad(remain%60)}`);
+    els.sTimer  && (els.sTimer.textContent  = els.leftSec.textContent); // 학생 타이머 미러
     if(remain<=0){
       stopTimer();
       const r=window.__room||{};
@@ -272,7 +295,7 @@ function startTimer(sec){
     }
   }, 250);
 }
-function stopTimer(){ if(timerHandle){ clearInterval(timerHandle); timerHandle=null; } els.leftSec && (els.leftSec.textContent="00:00"); }
+function stopTimer(){ if(timerHandle){ clearInterval(timerHandle); timerHandle=null; } if(els.leftSec) els.leftSec.textContent="00:00"; if(els.sTimer) els.sTimer.textContent="00:00"; }
 
 /***********************
  * Submit / Grade
@@ -291,6 +314,13 @@ async function join(){
   }
   me = { id, name };
   await setDoc(doc(respCol(roomId), me.id), { name, joinedAt:serverTimestamp(), answers:{}, alive:true }, { merge:true });
+
+  // 학생 상단 상태로 전환
+  els.studentHeaderRoom && (els.studentHeaderRoom.textContent = roomId);
+  els.studentHeaderName && (els.studentHeaderName.textContent = name);
+  els.studentJoinRow?.classList.add("hide");
+  els.studentJoinedRow?.classList.remove("hide");
+
   alert("참가 완료! 시작을 기다려 주세요.");
   saveLocal();
 }
@@ -298,6 +328,7 @@ async function submitChoice(){
   if(selectedChoiceIndex==null) return alert("보기를 선택하세요.");
   await submit(selectedChoiceIndex);
   els.btnSubmitChoice && (els.btnSubmitChoice.disabled=true);
+  showToast("제출되었습니다!");
 }
 async function submit(value){
   const r=window.__room; if(!r?.accept) return alert("지금은 제출할 수 없습니다.");
@@ -330,8 +361,9 @@ function computeScores(room, list){
     return { id:s.id, name:s.name||s.id, score, alive: s.alive!==false };
   });
 }
-function renderLeaderboardSorted(room, list){
-  if(!els.leaderboard) return;
+function renderLeaderboardSorted(room, list, targetEl){
+  const el = targetEl || els.leaderboard;
+  if(!el) return;
   const rows = computeScores(room, list)
     .sort((a,b)=> b.score-a.score || (a.name||'').localeCompare(b.name||''));
   const tbl=document.createElement("table");
@@ -347,7 +379,10 @@ function renderLeaderboardSorted(room, list){
     tb.appendChild(tr);
   });
   tbl.appendChild(tb);
-  els.leaderboard.innerHTML=""; els.leaderboard.appendChild(tbl);
+  el.innerHTML=""; el.appendChild(tbl);
+}
+function renderLeaderboardOverlay(){
+  const r=window.__room||{}; renderLeaderboardSorted(r, lastResponses, els.lbOverlayTable);
 }
 function renderGoldenBell(room, list){
   if(!els.goldenBell) return;
@@ -369,13 +404,29 @@ function renderGoldenBell(room, list){
 }
 
 /***********************
+ * Present Stats (참가/제출/정답/오답)
+ ***********************/
+function renderPresentStats(){
+  const r=window.__room||{}; const idx=r.currentIndex;
+  const total = lastResponses.length;
+  let submitted=0, correct=0, wrong=0;
+  lastResponses.forEach(s=>{
+    const a=s.answers?.[idx];
+    if(a){ submitted++; if(a.correct) correct++; else wrong++; }
+  });
+  if(els.statParticipants) els.statParticipants.textContent = String(total);
+  if(els.statSubmitted)   els.statSubmitted.textContent   = String(submitted);
+  if(els.statCorrect)     els.statCorrect.textContent     = String(correct);
+  if(els.statWrong)       els.statWrong.textContent       = String(wrong);
+}
+
+/***********************
  * Render
  ***********************/
 function renderRoom(r){
   // 공통 상태
   els.roomName && (els.roomName.textContent = `세션: ${roomId||'-'}`);
-  els.roomState && (els.roomState.className = `state ${roomId?'on':'off'}`);
-  els.roomState && (els.roomState.textContent = roomId? "온라인":"오프라인");
+  updateOnlineUI(!!roomId);
 
   const total=r.questions?.length||0; const idx=r.currentIndex;
   els.progress && (els.progress.textContent = `${Math.max(0,idx+1)}/${total}`);
@@ -383,6 +434,9 @@ function renderRoom(r){
   // 옵션 토글 미러
   if(els.chkAccept) els.chkAccept.checked=!!r.accept;
   if(els.chkReveal) els.chkReveal.checked=!!r.reveal;
+  if(els.styleNormal && els.styleBell){
+    (r.style==="goldenbell" ? els.styleBell : els.styleNormal).checked = true;
+  }
 
   // 프레젠테이션(관리자)
   if(els.pTitle) els.pTitle.textContent = r.title||roomId||"-";
@@ -402,6 +456,13 @@ function renderRoom(r){
 
   // 학생 화면
   if(MODE==='student'){
+    // 헤더의 참가정보 표시 유지
+    if(me?.name){
+      els.studentHeaderRoom && (els.studentHeaderRoom.textContent = roomId || "-");
+      els.studentHeaderName && (els.studentHeaderName.textContent = me.name);
+      els.studentJoinRow?.classList.add("hide");
+      els.studentJoinedRow?.classList.remove("hide");
+    }
     selectedChoiceIndex = null;
     if(els.btnSubmitChoice) els.btnSubmitChoice.disabled = true;
 
@@ -439,6 +500,8 @@ function renderRoom(r){
       }
     }
   }
+
+  renderPresentStats();
 }
 
 function renderResponses(list){
@@ -450,7 +513,9 @@ function renderResponses(list){
     els.chips.innerHTML="";
     list.forEach(s=>{
       const a=s.answers?.[idx]; const chip=document.createElement("div");
-      chip.className="chip " + (a? (a.correct?'ok':'no') : 'wait');
+      let styleClass = 'wait';
+      if(a) styleClass = a.correct ? 'ok' : 'no';
+      chip.className="chip " + styleClass;
       chip.textContent=s.name||s.id; els.chips.appendChild(chip);
     });
   }
@@ -472,21 +537,28 @@ function renderResponses(list){
     }
   }
 
-  // 리더보드 + 골든벨
-  renderLeaderboardSorted(r, list);
-  renderGoldenBell(r, list);
+  // 결과 화면: 스타일에 따른 분기
+  if((window.__room?.style||"normal")==="goldenbell"){
+    // 골든벨: 리더보드 + 골든벨 박스 강조
+    renderLeaderboardSorted(window.__room, list);
+    renderGoldenBell(window.__room, list);
+  } else {
+    // 일반: 리더보드만
+    renderLeaderboardSorted(window.__room, list);
+    if(els.goldenBell) els.goldenBell.innerHTML = "";
+  }
 
   // 전체 결과표
   if(els.resultsTable){
     const tbl=document.createElement("table");
     const thead=document.createElement("thead"), tr=document.createElement("tr");
-    ["이름", ...(r.questions||[]).map((_,i)=>`Q${i+1}`), "점수","상태"].forEach(h=>{ const th=document.createElement("th"); th.textContent=h; tr.appendChild(th); });
+    ["이름", ...(window.__room?.questions||[]).map((_,i)=>`Q${i+1}`), "점수","상태"].forEach(h=>{ const th=document.createElement("th"); th.textContent=h; tr.appendChild(th); });
     thead.appendChild(tr); tbl.appendChild(thead);
     const tb=document.createElement("tbody");
     list.forEach(s=>{
       let score=0; const tr=document.createElement("tr");
       const tdn=document.createElement("td"); tdn.textContent=s.name||s.id; tr.appendChild(tdn);
-      (r.questions||[]).forEach((q,i)=>{
+      (window.__room?.questions||[]).forEach((q,i)=>{
         const a=s.answers?.[i]; const td=document.createElement("td");
         td.textContent = a? (q.type==='mcq' ? (typeof a.value==='number'? a.value+1 : "-") : (a.value??"-")) : "-";
         if(a?.correct) score++; tr.appendChild(td);
@@ -525,6 +597,16 @@ function showPanel(name){
   };
   Object.values(map).forEach(el=>el?.classList.add("hide"));
   map[name]?.classList.remove("hide");
+}
+
+/***********************
+ * UI helpers
+ ***********************/
+function showToast(msg){
+  if(!els.toast) return;
+  els.toast.textContent = msg;
+  els.toast.classList.remove("hide");
+  setTimeout(()=> els.toast.classList.add("hide"), 1200);
 }
 
 /***********************
@@ -569,11 +651,12 @@ els.btnSaveQuiz?.addEventListener("click", async ()=>{
 els.btnSaveOptions?.addEventListener("click", async ()=>{
   if(!roomId) return alert("세션에 먼저 접속하세요.");
   const policy = els.chkPolicyName?.checked ? "name" : "device";
+  const style  = els.styleBell?.checked ? "goldenbell" : "normal";
   const autoNext = !!els.chkAutoNext?.checked;
   const accept   = !!els.chkAccept?.checked;
   const reveal   = !!els.chkReveal?.checked;
   const sec      = Math.max(5, Math.min(600, parseInt(els.timerSec?.value,10)||30));
-  await setDoc(roomRef(roomId), { policy, autoNext, accept, reveal, timerSec:sec }, { merge:true });
+  await setDoc(roomRef(roomId), { policy, style, autoNext, accept, reveal, timerSec:sec }, { merge:true });
   buildStudentLink();
   els.qrBox?.classList.remove("hide");
   alert("옵션 저장 완료!");
@@ -644,6 +727,13 @@ els.btnResetAll?.addEventListener("click", async ()=>{
   await Promise.all(tasks); alert("초기화 완료");
 });
 
+// 리더보드 발표모드
+els.btnLBPresent?.addEventListener("click", ()=>{
+  els.lbOverlay?.classList.remove("hide");
+  renderLeaderboardOverlay();
+});
+els.btnLBExit?.addEventListener("click", ()=> els.lbOverlay?.classList.add("hide"));
+
 // 학생 제출
 els.btnJoin?.addEventListener("click", join);
 els.btnShortSend?.addEventListener("click", ()=> submit((els.shortInput?.value||"").trim()));
@@ -655,16 +745,23 @@ els.btnSubmitChoice?.addEventListener("click", submitChoice);
 function boot(){
   // 1) 저장된 세션코드만 복원 (MODE는 무조건 admin으로 시작)
   loadLocal();
-  // 2) URL이 학생 모드이면 학생으로, 아니면 ‘항상 관리자’로 시작  ← #1 요구사항
+  // 2) URL이 학생 모드이면 학생으로, 아니면 ‘항상 관리자’로 시작
   const url=new URL(location.href);
   const role=url.searchParams.get("role");
   if(role==='student') setMode("student"); else setMode("admin");
   // 3) roomId가 있으면 자동 연결
   if(roomId) connect();
+  // 4) 학생 링크로 들어왔고 이름/디바이스가 있으면 상단 정보 노출
+  if(MODE==='student' && me?.name){
+    els.studentHeaderRoom && (els.studentHeaderRoom.textContent = roomId || "-");
+    els.studentHeaderName && (els.studentHeaderName.textContent = me.name);
+    els.studentJoinRow?.classList.add("hide");
+    els.studentJoinedRow?.classList.remove("hide");
+  }
 }
 boot();
 
-// 별도: 직접 학생 링크로 진입 시에도 동작
+// URL 직접 파라미터 처리: ?role=student&room=xxx
 (function fromURL(){
   const url=new URL(location.href);
   const rid=url.searchParams.get("room");
