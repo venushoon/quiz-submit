@@ -1,4 +1,4 @@
-name: Deploy
+name: Deploy static site
 
 on:
   push:
@@ -14,24 +14,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 20 }
-      - run: npm ci
-      - run: npm run build
+      # 루트의 index.html을 그대로 공개합니다.
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
-
-  deploy:
+          path: ./
+      - uses: actions/deploy-pages@v4
+        id: deployment
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
