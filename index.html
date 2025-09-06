@@ -5,60 +5,56 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>실시간 퀴즈</title>
   <link rel="stylesheet" href="./app.css" />
-
-  <!-- QRCode (CDN) -->
+  <!-- QRCode (학생 링크용) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-
-  <!-- Firebase v9 CDN -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getFirestore } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-    // 전역에 노출 (app.js에서 사용)
-    window.__fb = { initializeApp, getFirestore };
-  </script>
 </head>
 <body>
-
-  <!-- 헤더 : 공통 상단 상태/접속 -->
+  <!-- 상단 바: 세션 상태 + 모드별 컨트롤 -->
   <header class="topbar">
     <div class="brand">
       <span class="pill live">LIVE</span>
       <h1>실시간 퀴즈</h1>
     </div>
+
     <div class="session">
-      <label class="sr-only" for="roomId">세션 코드</label>
-      <input id="roomId" class="input sm" placeholder="예: class1" />
-      <button id="btnConnect" class="btn primary">접속</button>
-      <button id="btnAdmin" class="btn ghost">관리자</button>
-      <button id="btnStudent" class="btn ghost">학생</button>
+      <span id="roomName" class="roomname">세션: -</span>
+      <span id="roomState" class="state off">오프라인</span>
+
+      <!-- 관리자 전용 접속/모드 버튼 -->
+      <div id="adminControls" class="admin-only">
+        <input id="roomId" class="input sm" placeholder="세션코드 (예: class1)" />
+        <button id="btnConnect" class="btn primary">접속</button>
+        <button id="btnAdmin" class="btn ghost">관리자</button>
+        <button id="btnStudent" class="btn ghost">학생</button>
+      </div>
+
+      <!-- 학생 모드용: 이름 입력 + 참가 버튼 (접속/관리자 버튼 제거) -->
+      <div id="studentJoinBox" class="student-only hide">
+        <input id="studentName" class="input" placeholder="이름 입력" />
+        <button id="btnJoin" class="btn">참가</button>
+      </div>
     </div>
-    <div id="roomStatus" class="status">오프라인</div>
   </header>
 
-  <!-- 탭 (관리자에서만 보임) -->
+  <!-- 관리자 탭 (학생 모드에서는 감춤) -->
   <nav id="adminTabs" class="tabs hide">
-    <button id="tabBuild" class="tab">문항 만들기</button>
-    <button id="tabOptions" class="tab">옵션</button>
-    <button id="tabPresent" class="tab active">프레젠테이션</button>
-    <button id="tabResults" class="tab">결과</button>
+    <button id="tabBuild"    class="tab">문항 만들기</button>
+    <button id="tabOptions"  class="tab">옵션</button>
+    <button id="tabPresent"  class="tab active">프레젠테이션</button>
+    <button id="tabResults"  class="tab">결과</button>
   </nav>
 
   <main class="container">
 
-    <!-- 학생 패널 : 문제만 깔끔하게 -->
+    <!-- 학생 패널: 하단에 프레젠테이션이 보이지 않도록 “학생 전용” 문제 뷰만 제공 -->
     <section id="studentPanel" class="card hide">
-      <div class="student-head">
-        <input id="studentName" class="input" placeholder="이름 입력" />
-        <button id="btnJoin" class="btn">참가</button>
-      </div>
-
-      <div class="present-hero">
+      <div id="studentWait" class="present-hero">
         <div class="present-title" id="sTitle">-</div>
         <div class="present-q" id="sQText">대기 중입니다…</div>
         <div class="present-timer" id="sTimer">00:00</div>
       </div>
 
-      <!-- 객관식 -->
+      <!-- 객관식: 보기 선택 후 “답안 제출” 버튼으로 제출 -->
       <div id="sMcqBox" class="grid"></div>
 
       <!-- 주관식 -->
@@ -67,117 +63,120 @@
         <button id="btnShortSend" class="btn primary">제출</button>
       </div>
 
-      <!-- 모든 유형 공통 제출 버튼(객관식에도 제출 버튼이 있어야 한다는 요청) -->
+      <!-- 객관식 공통 제출 버튼 -->
       <div class="row gap mt">
-        <button id="btnSubmitChoice" class="btn primary">답안 제출</button>
-        <div id="submitHint" class="hint">선택(혹은 입력) 후 제출을 눌러주세요</div>
+        <button id="btnSubmitChoice" class="btn primary" disabled>답안 제출</button>
+        <div id="submitHint" class="hint">보기 선택 후 제출을 누르세요</div>
       </div>
     </section>
 
-    <!-- 문항 만들기(관리자) -->
+    <!-- (관리자) 문항 만들기 -->
     <section id="panelBuild" class="card hide">
       <div class="row between mb">
         <input id="quizTitle" class="input" placeholder="퀴즈 제목" />
         <div class="row gap">
           <input id="questionCount" class="input xs" type="number" min="1" max="20" value="3" />
-          <button id="btnBuildForm" class="btn ghost">빈 폼 만들기</button>
-          <button id="btnLoadSample" class="btn ghost">샘플 불러오기</button>
-          <button id="btnSaveQuiz" class="btn primary">저장</button>
+          <button id="btnBuildForm"   class="btn ghost">빈 폼 만들기</button>
+          <button id="btnLoadSample"  class="btn ghost">샘플 불러오기</button>
+          <button id="btnSaveQuiz"    class="btn primary">저장</button>
         </div>
       </div>
       <div id="builder" class="col gap"></div>
     </section>
 
-    <!-- 옵션(관리자) : 학생용 QR(좌) + 가이드(우), 제출 정책 등 -->
+    <!-- (관리자) 옵션: 저장 버튼 추가 → 저장 후 QR/링크 노출 -->
     <section id="panelOptions" class="card hide">
       <div class="grid2">
-        <!-- 좌: 학생 접속 QR/링크 -->
         <div>
-          <h3>학생 접속</h3>
-          <canvas id="qrCanvas" class="qr"></canvas>
-          <div class="row gap mt">
-            <input id="studentLink" class="input" readonly />
-            <button id="btnCopyLink" class="btn ghost">복사</button>
-            <button id="btnOpenStudent" class="btn ghost">학생 화면 열기</button>
+          <h3>제출 정책 / 진행 설정</h3>
+          <div class="split mt">
+            <label class="switch"><input id="chkPolicyDevice" type="radio" name="policy" value="device" checked /><span>기기당 1회</span></label>
+            <label class="switch"><input id="chkPolicyName"   type="radio" name="policy" value="name" /><span>실명당 1회</span></label>
           </div>
           <div class="split mt">
-            <label class="switch">
-              <input id="chkPolicyDevice" type="radio" name="policy" value="device" checked />
-              <span>기기당 1회</span>
-            </label>
-            <label class="switch">
-              <input id="chkPolicyName" type="radio" name="policy" value="name" />
-              <span>실명당 1회</span>
-            </label>
-            <label class="switch">
-              <input id="chkAutoNext" type="checkbox" />
-              <span>자동 다음</span>
-            </label>
+            <label class="switch"><input id="chkAccept" type="checkbox" /><span>제출 허용</span></label>
+            <label class="switch"><input id="chkReveal" type="checkbox" /><span>정답 공개</span></label>
           </div>
           <div class="split mt">
-            <label class="switch">
-              <input id="chkAccept" type="checkbox" />
-              <span>제출 허용</span>
-            </label>
-            <label class="switch">
-              <input id="chkReveal" type="checkbox" />
-              <span>정답 공개</span>
-            </label>
+            <label class="switch"><input id="chkAutoNext" type="checkbox" /><span>자동 다음</span></label>
+            <div class="row gap">
+              <input id="timerSec" class="input xs" type="number" value="30" />
+              <span class="hint">초</span>
+            </div>
           </div>
           <div class="row gap mt">
-            <input id="timerSec" class="input xs" type="number" value="30" />
-            <button id="btnTimerGo" class="btn ghost">타이머 시작</button>
-            <button id="btnTimerStop" class="btn ghost">타이머 정지</button>
-            <div class="hint">남은 시간: <b id="leftSec">00:00</b></div>
+            <button id="btnSaveOptions" class="btn primary">옵션 저장</button>
+          </div>
+
+          <div id="qrBox" class="mt hide">
+            <h3 class="mt">학생 접속</h3>
+            <canvas id="qrCanvas" class="qr"></canvas>
+            <div class="row gap mt">
+              <input id="studentLink" class="input" readonly />
+              <button id="btnCopyLink"    class="btn ghost">복사</button>
+              <button id="btnOpenStudent" class="btn ghost">학생 화면 열기</button>
+            </div>
           </div>
         </div>
 
-        <!-- 우: 교사용 가이드 -->
-        <div>
-          <h3>교사용 가이드</h3>
-          <ul class="guide">
-            <li>세션 코드 입력 → <b>접속</b> (다음부터 자동 재접속)</li>
-            <li><b>문항 만들기</b>에서 문항 작성 후 <b>저장</b></li>
-            <li><b>프레젠테이션</b>에서 <b>시작/이전/다음/종료</b>로 진행</li>
-            <li><b>옵션</b>에서 제출 정책/정답 공개/타이머 설정</li>
-            <li>결과 탭에서 채점·CSV 저장·전체 초기화</li>
+        <aside class="guide">
+          <h3>관리자 가이드</h3>
+          <ul>
+            <li>문항 저장 후, 옵션을 설정하고 <b>옵션 저장</b>을 누르면 QR/링크가 생성됩니다.</li>
+            <li>프레젠테이션 탭에서 <b>시작</b>을 누르면 1번 문항이 표시됩니다.</li>
+            <li><b>종료</b>를 누르면 자동으로 <b>결과</b> 탭으로 이동합니다.</li>
           </ul>
-        </div>
+        </aside>
       </div>
     </section>
 
-    <!-- 프레젠테이션(관리자) : 큰 화면, 타이머, 진행 버튼 -->
-    <section id="panelPresent" class="card">
+    <!-- (관리자) 프레젠테이션: 진행 버튼 여기로 이동 -->
+    <section id="panelPresent" class="card hide">
+      <div class="row between mb">
+        <div class="row gap">
+          <button id="btnStart" class="btn success">시작</button>
+          <button id="btnPrev"  class="btn ghost">이전</button>
+          <button id="btnNext"  class="btn ghost">다음</button>
+          <button id="btnEndAll" class="btn danger">종료</button>
+        </div>
+        <div class="row gap">
+          <span id="progress" class="hint">0/0</span>
+          <span id="leftSec" class="badge">00:00</span>
+          <button id="btnTimerGo"   class="btn ghost">타이머 시작</button>
+          <button id="btnTimerStop" class="btn ghost">타이머 정지</button>
+        </div>
+      </div>
+
       <div class="present-hero">
         <div id="pTitle" class="present-title">-</div>
-        <div id="pQ" class="present-q">대기 중입니다…</div>
-        <div id="pTimer" class="present-timer">00:00</div>
+        <div id="pQ"     class="present-q">대기 중입니다…</div>
       </div>
-      <div id="pOpts" class="present-opts"></div>
-
-      <div class="row gap mt center">
-        <button id="btnStart" class="btn success">시작</button>
-        <button id="btnPrev" class="btn">이전</button>
-        <button id="btnNext" class="btn">다음</button>
-        <button id="btnEndAll" class="btn danger">종료</button>
-      </div>
-      <div class="hint center mt">학생 화면에는 문제와 제출 버튼만 보입니다.</div>
+      <div id="pOpts" class="grid"></div>
     </section>
 
-    <!-- 결과(관리자) : 점수 내림차순 정렬 -->
+    <!-- (관리자) 결과 -->
     <section id="panelResults" class="card hide">
       <div class="row between mb">
         <div class="row gap">
           <button id="btnExportCSV" class="btn ghost">CSV 내보내기</button>
+          <button id="btnSaveJSON"  class="btn ghost">백업(JSON)</button>
+          <label class="btn ghost">
+            불러오기 <input id="fileLoad" type="file" accept="application/json" hidden />
+          </label>
+        </div>
+        <div class="row gap">
           <button id="btnResetAll" class="btn danger ghost">전체 초기화</button>
         </div>
-        <div class="hint">점수 높은 순으로 정렬</div>
       </div>
-      <div id="resultsTable"></div>
+
+      <div id="chips" class="chips"></div>
+      <div id="shortAnswers" class="col gap mt"></div>
+      <div id="resultsTable" class="mt"></div>
     </section>
 
   </main>
 
-  <script src="./app.js" type="module"></script>
+  <!-- Firebase 모듈 & 앱 스크립트 -->
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
