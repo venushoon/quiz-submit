@@ -1,333 +1,545 @@
-/* ========= 실시간 퀴즈 – 자동 재접속/작은 톤/타이머/프레젠테이션 ========= */
+/* =========================
+   Firebase (필수: config 교체)
+   ========================= */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import {
+  getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc,
+  collection, getDocs, runTransaction, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-const el = bind({
-  roomIdInput:'roomIdInput', btnConnect:'btnConnect',
-  btnTeacherMode:'btnTeacherMode', btnStudentMode:'btnStudentMode', statusText:'statusText',
-  teacherPanel:'teacherPanel', joinCard:'joinCard',
-  tabs:'.tab', tabBuild:'tab-build', tabControl:'tab-control', tabResults:'tab-results', tabPresent:'tab-present',
-  quizTitle:'quizTitle', questionCount:'questionCount', btnBuildForm:'btnBuildForm', btnLoadSample:'btnLoadSample',
-  policySelect:'policySelect', goldenBellToggle:'goldenBellToggle', builder:'builder',
-  btnSaveQuiz:'btnSaveQuiz', btnExportJSON:'btnExportJSON', btnImportJSON:'btnImportJSON', fileImport:'fileImport',
-  qrBox:'qrBox', studentLinkInput:'studentLinkInput', btnCopy:'btnCopy', btnOpenStudent:'btnOpenStudent',
-  btnStart:'btnStart', btnPrev:'btnPrev', btnNext:'btnNext', toggleAccept:'toggleAccept', toggleReveal:'toggleReveal',
-  timerSec:'timerSec', btnTimerStart:'btnTimerStart', btnTimerStop:'btnTimerStop', autoNextToggle:'autoNextToggle',
-  remainTime:'remainTime',
-  ctlTitle:'ctlTitle', ctlIdx:'ctlIdx', ctlJoin:'ctlJoin', ctlQuestion:'ctlQuestion',
-  shortGrader:'shortGrader', shortAnswers:'shortAnswers', chips:'chips', policyText:'policyText',
-  btnExportCSV:'btnExportCSV', btnResetAll:'btnResetAll', resultsHead:'resultsHead', resultsBody:'resultsBody',
-  pptTitle:'pptTitle', pptSub:'pptSub', pptQuestion:'pptQuestion', pptOptions:'pptOptions',
-  pptSubmit:'pptSubmit', pptOk:'pptOk', pptBad:'pptBad', pptOut:'pptOut',
-  studentName:'studentName', btnJoin:'btnJoin', quizTypeBadge:'quizTypeBadge', questionText:'questionText',
-  progressText:'progressText', optionsContainer:'optionsContainer', subjectiveBox:'subjectiveBox',
-  subjectiveInput:'subjectiveInput', btnSubmitSubjective:'btnSubmitSubjective', btnSubmitMCQ:'btnSubmitMCQ',
-  answerState:'answerState', sRemain:'sRemain',
-});
+// 🔧 본인의 Firebase 설정으로 교체
+const firebaseConfig = {
+  apiKey: "AIzaSyCClNc95ykYCudmLHTPgpewZ60bZ8zukbo",
+  authDomain: "live-quiz-a14d1.firebaseapp.com",
+  projectId: "live-quiz-a14d1",
+};
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
 
-function bind(map){const o={};for(const k in map){const v=map[k];o[k]=v.startsWith('.')?Array.from(document.querySelectorAll(v)):document.getElementById(v);}return o;}
-const $=(s,e=document)=>e.querySelector(s), $$=(s,e=document)=>Array.from(e.querySelectorAll(s));
-const id=()=>Math.random().toString(36).slice(2,10), clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
-const esc=s=>String(s??'').replace(/[&<>\"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[m]));
-const csvEsc=v=>v==null?'':(/[",\n]/.test(String(v))?`"${String(v).replace(/"/g,'""')}"`:String(v));
-const toast=alert;
+/* =========================
+   헬퍼
+   ========================= */
+const $ = (sel, el=document)=>el.querySelector(sel);
+const $$ = (sel, el=document)=>Array.from(el.querySelectorAll(sel));
+const sleep = (ms)=>new Promise(r=>setTimeout(r, ms));
+const pad = (n)=>String(n).padStart(2,'0');
 
-let MODE='teacher', roomId='', me={id:null,name:''}, policy='device', goldenBell=false;
-let db=null, FS=null, connected=false;
+/* =========================
+   상태
+   ========================= */
+let MODE = "admin"; // 'admin' | 'student'
+let roomId = "";
+let me    = { id:null, name:"" };
+let unsubRoom = null, unsubResp = null;
+let leftTimer = null;
 
-const ENV={useFS:false, subs:[]};
-const KEYS={ LAST_ROOM:'quiz:last_room', LAST_MODE:'quiz:last_mode', DEVICE_TOKEN:'quiz:device_token', LS_ROOM:id=>`quiz:${id}` };
-
-// Firebase 연결(있으면 사용)
-(async function(){
-  try{
-    const conf={ apiKey:"AIzaSyCClNc95ykYCudmLHTPgpewZ60bZ8zukbo", authDomain:"live-quiz-a14d1.firebaseapp.com", projectId:"live-quiz-a14d1" };
-    if(window.firebase?.initializeApp){ const app=firebase.initializeApp(conf); db=firebase.firestore(app); FS=firebase.firestore; ENV.useFS=true; }
-  }catch{}
-})();
-
-/* ---------- Local Model (폴백) ---------- */
-function lsRead(id){const r=localStorage.getItem(KEYS.LS_ROOM(id));return r?JSON.parse(r):null;}
-function lsWrite(id,d){localStorage.setItem(KEYS.LS_ROOM(id),JSON.stringify(d));}
-function ensureRoomLocal(id){
-  const cur=lsRead(id); if(cur) return cur;
-  const room={title:"새 세션",policy:"device",goldenBell:false,mode:"idle",accept:false,reveal:false,currentIndex:-1,timerEndAt:null,autoNext:false,questions:[],responses:{}};
-  lsWrite(id,room); return room;
-}
-async function fsGetRoom(id){ if(!ENV.useFS) return ensureRoomLocal(id); try{const s=await db.collection('rooms').doc(id).get();return s.exists?s.data():null;}catch{ENV.useFS=false;return ensureRoomLocal(id);} }
-async function fsSetRoom(id,patch){ if(!ENV.useFS){const c=ensureRoomLocal(id);lsWrite(id,{...c,...patch});return;} try{await db.collection('rooms').doc(id).set(patch,{merge:true});}catch{ENV.useFS=false;return fsSetRoom(id,patch);} }
-async function fsGetResponses(id){ if(!ENV.useFS){const c=ensureRoomLocal(id);return Object.entries(c.responses||{}).map(([i,v])=>({id:i,...v}));}
-  try{const ss=await db.collection('rooms').doc(id).collection('responses').get();const a=[];ss.forEach(d=>a.push({id:d.id,...d.data()}));return a;}catch{ENV.useFS=false;return fsGetResponses(id);} }
-async function fsSetResponse(id,uid,patch){ if(!ENV.useFS){const c=ensureRoomLocal(id);const u=c.responses[uid]||{name:'',alive:true,answers:{}};c.responses[uid]=merge(u,patch);lsWrite(id,c);return;}
-  try{await db.collection('rooms').doc(id).collection('responses').doc(uid).set(patch,{merge:true});}catch{ENV.useFS=false;return fsSetResponse(id,uid,patch);} }
-function merge(a,b){const o={...a};for(const k in b){if(b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k]))o[k]=merge(a[k]||{},b[k]);else o[k]=b[k];}return o;}
-function unsubAll(){ENV.subs.forEach(fn=>fn());ENV.subs=[];}
-function listenRoom(id,cb){
-  if(!ENV.useFS){const t=setInterval(async()=>cb(await fsGetRoom(id)),700);ENV.subs.push(()=>clearInterval(t));cb(ensureRoomLocal(id));return;}
-  const u=db.collection('rooms').doc(id).onSnapshot(s=>s.exists&&cb(s.data()));ENV.subs.push(u);
-}
-function listenResponses(id,cb){
-  if(!ENV.useFS){const t=setInterval(async()=>cb(await fsGetResponses(id)),700);ENV.subs.push(()=>clearInterval(t));cb([]);return;}
-  const u=db.collection('rooms').doc(id).collection('responses').onSnapshot(s=>{const a=[];s.forEach(d=>a.push({id:d.id,...d.data()}));cb(a);});ENV.subs.push(u);
-}
-
-/* ---------- 모드/상태 표시 ---------- */
-el.btnTeacherMode.addEventListener('click',()=>setMode('teacher'));
-el.btnStudentMode.addEventListener('click',()=>setMode('student'));
+const els = {
+  roomId: $("#roomId"), btnConnect: $("#btnConnect"), roomStatus: $("#roomStatus"),
+  btnAdmin: $("#btnAdmin"), btnStudent: $("#btnStudent"),
+  tabBuild: $("#tabBuild"), tabControl: $("#tabControl"), tabPresent: $("#tabPresent"), tabResults: $("#tabResults"),
+  pBuild: $("#panelBuild"), pControl: $("#panelControl"), pPresent: $("#panelPresent"), pResults: $("#panelResults"),
+  quizTitle: $("#quizTitle"), questionCount: $("#questionCount"), btnBuildForm: $("#btnBuildForm"),
+  btnLoadSample: $("#btnLoadSample"), btnSaveQuiz: $("#btnSaveQuiz"), builder: $("#builder"),
+  btnStart: $("#btnStart"), btnPrev: $("#btnPrev"), btnNext: $("#btnNext"), chkAccept: $("#chkAccept"),
+  chkReveal: $("#chkReveal"), timerSec: $("#timerSec"), btnTimerGo: $("#btnTimerGo"), btnTimerStop: $("#btnTimerStop"),
+  leftSec: $("#leftSec"), btnEndAll: $("#btnEndAll"),
+  nowQuestion: $("#nowQuestion"), progress: $("#progress"),
+  qrCanvas: $("#qrCanvas"), studentLink: $("#studentLink"), btnCopyLink: $("#btnCopyLink"), btnOpenStudent: $("#btnOpenStudent"),
+  chips: $("#chips"), shortAnswers: $("#shortAnswers"),
+  btnExportCSV: $("#btnExportCSV"), resultsTable: $("#resultsTable"), btnResetAll: $("#btnResetAll"),
+  btnSaveJSON: $("#btnSaveJSON"), fileLoad: $("#fileLoad"),
+  studentPanel: $("#studentPanel"), studentName: $("#studentName"), btnJoin: $("#btnJoin"),
+  badgeType: $("#badgeType"), sQText: $("#sQText"), mcqBox: $("#mcqBox"),
+  shortBox: $("#shortBox"), shortInput: $("#shortInput"), btnShortSend: $("#btnShortSend"),
+  guideAdmin: $("#guideAdmin"), guideStudent: $("#guideStudent"),
+  pTitle: $("#pTitle"), pQ: $("#pQ"), pOpts: $("#pOpts"),
+};
 
 function setMode(m){
-  MODE=m;
-  el.teacherPanel.classList.toggle('hidden', m!=='teacher');
-  el.joinCard.classList.toggle('hidden', m!=='student');
-  localStorage.setItem(KEYS.LAST_MODE,m);
-  writeStatus(); // 연결여부 반영한 문구
-}
-function writeStatus(){
-  if(roomId) el.statusText.textContent=`세션: ${roomId} · ${ENV.useFS?'온라인':'오프라인'} · 모드: ${MODE==='teacher'?'관리자':'학생'}`;
-  else el.statusText.textContent= MODE==='teacher' ? '관리자 모드: 세션을 연결해 주세요.' : '학생 모드: 세션 접속 후 참가하세요.';
+  MODE = m;
+  // 가이드/패널 표시 제어
+  els.guideAdmin.classList.toggle("hide", m!=="admin");
+  els.guideStudent.classList.toggle("hide", m!=="student");
+
+  els.pBuild.classList.toggle("hide", m!=="admin");
+  els.pControl.classList.toggle("hide", m!=="admin");
+  els.pResults.classList.toggle("hide", m!=="admin");
+  els.pPresent.classList.toggle("hide", false);     // 발표는 관리용 탭에서 사용
+  els.studentPanel.classList.toggle("hide", m!=="student");
+
+  // 상단 상태 문구 업데이트
+  els.roomStatus.textContent = (roomId ? `세션: ${roomId} · 온라인` : (m==='admin'?'관리자 모드: 세션에 접속해 주세요.':'학생 모드: 세션 접속 후 참가하세요.'));
+
+  // 탭 초기 강조 (진행 탭 기본)
+  [els.tabBuild,els.tabControl,els.tabPresent,els.tabResults].forEach(b=>b.classList.remove("active"));
+  (m==='admin'?els.tabControl:els.tabPresent).classList.add("active");
 }
 
-/* ---------- 연결 ---------- */
-el.btnConnect.addEventListener('click', connectRoom);
-
-async function connectRoom(){
-  const id=el.roomIdInput.value.trim(); if(!id) return toast('세션 코드를 입력하세요.');
-  roomId=id; localStorage.setItem(KEYS.LAST_ROOM,roomId);
-  const r=await fsGetRoom(roomId); if(!r) await fsSetRoom(roomId, ensureRoomLocal(roomId));
-  policy=r?.policy||'device'; goldenBell=!!r?.goldenBell; connected=true;
-  el.policyText.textContent=`정책: ${policy==='device'?'기기당 1회':'실명당 1회'} · 골든벨: ${goldenBell?'ON':'OFF'}`;
-  unsubAll(); listenRoom(roomId, renderRoom); listenResponses(roomId, renderResponses);
-  await refreshStudentLink(); writeStatus();
+function saveLocal(){
+  localStorage.setItem("quiz.live", JSON.stringify({ roomId, MODE, me }));
 }
-function studentURL(){ const u=new URL(location.href); u.searchParams.set('room',roomId); u.searchParams.set('student','1'); return u.toString(); }
-async function refreshStudentLink(){ if(!roomId) return; const url=studentURL(); el.studentLinkInput.value=url; el.btnOpenStudent.href=url; await drawQR(url); }
-async function drawQR(text){
-  el.qrBox.innerHTML='';
+function loadLocal(){
   try{
-    if(window.QRCode?.toCanvas){
-      const canvas=document.createElement('canvas'); el.qrBox.appendChild(canvas);
-      await new Promise((res,rej)=>QRCode.toCanvas(canvas,text,(e)=>e?rej(e):res()));
+    const d = JSON.parse(localStorage.getItem("quiz.live")||"{}");
+    roomId = d.roomId||""; MODE = d.MODE||"admin"; me = d.me||{id:null,name:""};
+    if(roomId) els.roomId.value = roomId;
+  }catch{}
+}
+
+/* =========================
+   Firestore helpers
+   ========================= */
+const roomRef = (id)=>doc(db, "rooms", id);
+const respCol = (id)=>collection(db, "rooms", id, "responses");
+
+async function ensureRoom(id){
+  const snap = await getDoc(roomRef(id));
+  if(!snap.exists()){
+    await setDoc(roomRef(id), {
+      title: "새 세션", mode:"idle", currentIndex:-1, accept:false, reveal:false,
+      timerEnd:null, createdAt: serverTimestamp(), questions:[]
+    }, { merge:true });
+  }
+}
+
+function listenRoom(id){
+  if(unsubRoom) unsubRoom();
+  unsubRoom = onSnapshot(roomRef(id), (snap)=>{
+    if(!snap.exists()) return;
+    const r = snap.data();
+    window.__room = r;          // 프레젠테이션/학생/관리 공용 렌더에 사용
+    renderRoom(r);
+  });
+}
+function listenResponses(id){
+  if(unsubResp) unsubResp();
+  unsubResp = onSnapshot(respCol(id), (qs)=>{
+    const arr=[]; qs.forEach(d=>arr.push({ id:d.id, ...d.data() }));
+    renderResponses(arr);
+  });
+}
+
+/* =========================
+   연결/재연결
+   ========================= */
+async function connect(){
+  const id = (els.roomId.value||"").trim();
+  if(!id){ alert("세션 코드를 입력하세요."); return; }
+  roomId = id;
+  await ensureRoom(roomId);
+  listenRoom(roomId);
+  listenResponses(roomId);
+  buildStudentLink();
+  els.roomStatus.textContent = `세션: ${roomId} · 온라인`;
+  saveLocal();
+}
+
+function autoReconnect(){
+  loadLocal();
+  setMode(MODE);
+  if(roomId){
+    connect();     // 자동 재접속
+  }
+}
+
+/* =========================
+   UI: 빌더
+   ========================= */
+function cardRow(no, q){
+  const wrap = document.createElement("div");
+  wrap.className="qcard";
+  wrap.innerHTML=`
+    <div class="row wrap">
+      <span class="badge">${no}번</span>
+      <label class="switch">
+        <input type="radio" name="type-${no}" value="mcq" ${q?.type==='short'?'':'checked'} />
+        <span>객관식</span>
+      </label>
+      <label class="switch">
+        <input type="radio" name="type-${no}" value="short" ${q?.type==='short'?'checked':''} />
+        <span>주관식</span>
+      </label>
+    </div>
+    <input class="qtext input" data-no="${no}" placeholder="문항 내용" value="${q?.text||''}">
+    <div class="mcq ${q?.type==='short'?'hide':''}">
+      <div class="row wrap">
+        ${(q?.options||['','','','']).map((v,i)=>`
+          <input class="opt input" data-no="${no}" data-idx="${i}" placeholder="보기 ${i+1}" value="${v}">
+        `).join('')}
+      </div>
+      <div class="row">
+        <span class="hint">정답 번호</span>
+        <input class="ansIndex input xs" data-no="${no}" type="number" min="1" max="10" value="${(q?.answerIndex??0)+1}">
+      </div>
+    </div>
+    <div class="short ${q?.type==='short'?'':'hide'}">
+      <input class="ansText input" data-no="${no}" placeholder="정답(선택, 자동채점용)" value="${q?.answerText||''}">
+    </div>
+  `;
+  const radios = $$(`input[name="type-${no}"]`, wrap);
+  const divMcq = $(".mcq", wrap), divShort=$(".short", wrap);
+  radios.forEach(r=>r.addEventListener("change",()=>{
+    const isShort = radios.find(x=>x.checked)?.value==='short';
+    divMcq.classList.toggle("hide", isShort);
+    divShort.classList.toggle("hide", !isShort);
+  }));
+  return wrap;
+}
+
+function collectBuilder(){
+  const cards = $$("#builder>.qcard");
+  const list = cards.map((c,idx)=>{
+    const no = idx+1;
+    const type = c.querySelector(`input[name="type-${no}"]:checked`).value;
+    const text = c.querySelector(".qtext").value.trim();
+    if(!text) return null;
+    if(type==='mcq'){
+      const opts = $$(".opt", c).map(i=>i.value.trim()).filter(Boolean);
+      const ans  = Math.max(0, Math.min(opts.length-1, (parseInt(c.querySelector(".ansIndex").value,10)||1)-1));
+      return { type:'mcq', text, options:opts, answerIndex: ans };
+    }else{
+      return { type:'short', text, answerText: c.querySelector(".ansText").value.trim() };
+    }
+  }).filter(Boolean);
+  return { title: els.quizTitle.value||"퀴즈", questions: list };
+}
+
+/* =========================
+   진행 흐름 + 종료
+   ========================= */
+async function startQuiz(){ await updateDoc(roomRef(roomId), { mode:"active", currentIndex:0, accept:true }); }
+async function step(delta){
+  await runTransaction(db, async (tx)=>{
+    const snap = await tx.get(roomRef(roomId));
+    const r = snap.data(); const total=(r.questions?.length||0);
+    let next = (r.currentIndex??-1)+delta;
+    if(next>=total){ // 끝났다면 종료 처리
+      tx.update(roomRef(roomId), { currentIndex: total-1, mode:"ended", accept:false });
+      alert("모든 문항을 마쳤습니다. 결과 탭에서 저장/채점하세요.");
       return;
     }
-  }catch{}
-  const img=new Image(); img.alt='QR'; img.width=180; img.height=180;
-  img.src='https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='+encodeURIComponent(text);
-  el.qrBox.appendChild(img);
+    next = Math.max(0, next);
+    tx.update(roomRef(roomId), { currentIndex: next, accept:true });
+  });
 }
-el.btnCopy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(el.studentLinkInput.value||'');toast('복사 완료');}catch{toast('복사 실패');}});
-
-/* ---------- 빌더 ---------- */
-el.btnBuildForm.addEventListener('click',()=>{const n=clamp(parseInt(el.questionCount.value||'3',10),1,20);el.builder.innerHTML='';for(let i=0;i<n;i++)el.builder.appendChild(row(i+1));});
-el.btnLoadSample.addEventListener('click',()=>{
-  const samples=[
-    {type:'mcq',text:'태양계에서 가장 큰 행성은?',options:['지구','목성','화성','금성'],answerIndex:1},
-    {type:'short',text:'물의 끓는점(°C)은?',answerText:'100'},
-    {type:'mcq',text:'바다의 소금기는 어디서 올까요?',options:['소금산','강물의 광물질','하늘','바람'],answerIndex:1},
-  ]; el.quizTitle.value='샘플 퀴즈'; el.questionCount.value=samples.length; el.builder.innerHTML=''; samples.forEach((q,i)=>el.builder.appendChild(row(i+1,q)));
-});
-el.btnSaveQuiz.addEventListener('click', async ()=>{
-  if(!roomId) return toast('세션부터 접속하세요.');
-  const payload=collect(); if(payload.questions.length===0) return toast('문항이 없습니다.');
-  policy=el.policySelect.value; goldenBell=!!el.goldenBellToggle.checked;
-  await fsSetRoom(roomId,{ title:payload.title, policy, goldenBell, mode:'idle', accept:false, reveal:false, currentIndex:-1, timerEndAt:null, autoNext:!!el.autoNextToggle?.checked, questions:payload.questions });
-  el.policyText.textContent=`정책: ${policy==='device'?'기기당 1회':'실명당 1회'} · 골든벨: ${goldenBell?'ON':'OFF'}`;
-  toast('저장 완료');
-});
-el.btnExportJSON.addEventListener('click',async()=>{if(!roomId) return; const r=await fsGetRoom(roomId); const blob=new Blob([JSON.stringify(r,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${r.title||roomId}.json`; a.click(); URL.revokeObjectURL(a.href);});
-el.btnImportJSON.addEventListener('change',()=>{}); // 방지
-el.btnImportJSON.addEventListener('click',()=>el.fileImport.click());
-el.fileImport.addEventListener('change', async e=>{
-  const f=e.target.files?.[0]; if(!f) return; try{const data=JSON.parse(await f.text()); if(!roomId){roomId=prompt('세션 코드 입력')||''; if(!roomId) return;}
-    await fsSetRoom(roomId,data); toast('불러오기 완료'); }catch{toast('JSON 형식 오류');} e.target.value='';
-});
-
-function row(no,q){
-  const w=document.createElement('div'); w.className='card';
-  w.innerHTML=`
-    <div class="row" style="flex-wrap:wrap">
-      <span class="tag">${no}번</span>
-      <label class="small">유형</label>
-      <label class="row" style="gap:6px"><input type="radio" name="type-${no}" value="mcq" ${q?.type==='short'?'':'checked'}> 객관식</label>
-      <label class="row" style="gap:6px"><input type="radio" name="type-${no}" value="short" ${q?.type==='short'?'checked':''}> 주관식</label>
-    </div>
-    <div class="row" style="margin-top:6px">
-      <input class="q-text" data-no="${no}" placeholder="문항 내용" value="${esc(q?.text||'')}" style="flex:1" />
-    </div>
-    <div class="mcq ${q?.type==='short'?'hidden':''}" data-no="${no}">
-      <div class="row" style="flex-wrap:wrap;margin-top:6px;gap:8px">
-        ${(q?.options||['','','','']).map((v,i)=>`<input class="opt" data-idx="${i}" placeholder="보기 ${i+1}" value="${esc(v)}" style="width:200px" />`).join('')}
-      </div>
-      <div class="row" style="margin-top:6px">
-        <label class="small">정답 번호</label>
-        <input class="ansIndex" type="number" min="1" max="10" value="${(q?.answerIndex??0)+1}" style="width:80px" />
-      </div>
-    </div>
-    <div class="short ${q?.type==='short'?'':'hidden'}" data-no="${no}">
-      <div class="row" style="margin-top:6px">
-        <input class="ansText" placeholder="정답(선택, 자동채점용)" value="${esc(q?.answerText||'')}" style="width:300px" />
-      </div>
-    </div>`;
-  const radios=$$(`input[name="type-${no}"]`,w), mcq=$('.mcq',w), short=$('.short',w);
-  radios.forEach(r=>r.addEventListener('change',()=>{const isShort=radios.find(x=>x.checked)?.value==='short';mcq.classList.toggle('hidden',isShort);short.classList.toggle('hidden',!isShort);}));
-  return w;
-}
-function collect(){
-  const title=el.quizTitle.value||'퀴즈'; const cards=$$('#builder > .card');
-  const questions=cards.map((card,idx)=>{
-    const no=idx+1; const type=card.querySelector(`input[name="type-${no}"]:checked`).value;
-    const text=card.querySelector('.q-text').value.trim(); if(!text) return null;
-    if(type==='mcq'){const opts=$$('.opt',card).map(x=>x.value.trim()).filter(Boolean); const ans=clamp(parseInt($('.ansIndex',card).value,10)-1,0,Math.max(0,opts.length-1)); return {type:'mcq',text,options:opts,answerIndex:ans};}
-    const answerText=$('.ansText',card).value.trim(); return {type:'short',text,answerText};
-  }).filter(Boolean);
-  return {title,questions};
+async function finishAll(){
+  if(!confirm("퀴즈를 종료할까요?")) return;
+  await updateDoc(roomRef(roomId), { mode:"ended", accept:false });
 }
 
-/* ---------- 진행/타이머 ---------- */
-el.btnStart.addEventListener('click',()=>updateRoom({mode:'active',currentIndex:0,accept:true,reveal:false,timerEndAt:null}));
-el.btnPrev.addEventListener('click',()=>stepIndex(-1));
-el.btnNext.addEventListener('click',()=>stepIndex(1));
-el.toggleAccept.addEventListener('change',()=>updateRoom({accept:!!el.toggleAccept.checked}));
-el.toggleReveal.addEventListener('change',()=>updateRoom({reveal:!!el.toggleReveal.checked}));
-el.autoNextToggle.addEventListener('change',()=>updateRoom({autoNext:!!el.autoNextToggle.checked}));
-el.btnTimerStart.addEventListener('click',async()=>{const sec=clamp(parseInt(el.timerSec.value||'30',10),5,600);await updateRoom({timerEndAt:Date.now()+sec*1000,accept:true,reveal:false});});
-el.btnTimerStop.addEventListener('click',()=>updateRoom({timerEndAt:null}));
+/* =========================
+   제출/채점/골든벨
+   ========================= */
+async function join(){
+  if(!roomId) return alert("세션에 먼저 접속하세요.");
+  const name = (els.studentName.value||"").trim();
+  if(!name) return alert("이름을 입력하세요.");
+  me = { id: localStorage.getItem("quiz.device") || makeKey(), name };
+  localStorage.setItem("quiz.device", me.id);
+  await setDoc(doc(respCol(roomId), me.id), {
+    name, joinedAt: serverTimestamp(), answers:{}, alive:true
+  }, { merge:true });
+  alert("참가 완료!");
+  saveLocal();
+}
 
-async function updateRoom(p){if(!roomId) return;await fsSetRoom(roomId,p);}
-async function stepIndex(d){const r=await fsGetRoom(roomId);const next=clamp((r.currentIndex??-1)+d,0,Math.max(0,(r.questions?.length||1)-1));await updateRoom({currentIndex:next,accept:true,reveal:false,timerEndAt:null});}
+async function submit(value){
+  const r = window.__room; if(!r?.accept) return alert("지금은 제출할 수 없습니다.");
+  const idx = r.currentIndex; const q = r.questions?.[idx]; if(!q) return;
 
-/* ---------- 렌더링 ---------- */
-let ticker=null; function clearTicker(){if(ticker) clearInterval(ticker); ticker=null;}
+  // 정책: 기본은 "기기당 1회", 실명당 1회는 name을 키로 별도 구현 가능(필요시)
+  const ref = doc(respCol(roomId), me.id);
+  const snap = await getDoc(ref);
+  const prev = snap.exists()? (snap.data().answers||{}) : {};
+  if(prev[idx]!=null) return alert("이미 제출했습니다.");
 
-async function renderRoom(r){
-  window.__room=r; writeStatus();
-
-  el.ctlTitle.textContent=r.title||'-'; el.ctlIdx.textContent=r.currentIndex>=0?`${r.currentIndex+1}/${r.questions?.length||0}`:'-';
-  el.toggleAccept.checked=!!r.accept; el.toggleReveal.checked=!!r.reveal; el.autoNextToggle.checked=!!r.autoNext;
-
-  clearTicker();
-  const tick=()=>{const left=Math.max(0,(r.timerEndAt||0)-Date.now());const mm=String(Math.floor(left/60000)).padStart(2,'0');const ss=String(Math.floor((left%60000)/1000)).padStart(2,'0'); el.remainTime.textContent=`${mm}:${ss}`; el.sRemain.textContent=`${mm}:${ss}`;
-    if(MODE==='teacher'&&r.timerEndAt&&left<=0){clearTicker();updateRoom({accept:false,reveal:true,timerEndAt:null}); if(r.autoNext) setTimeout(()=>stepIndex(1),800);}
-  }; tick(); ticker=setInterval(tick,250);
-
-  if(MODE==='teacher'){
-    const q=r.questions?.[r.currentIndex];
-    el.ctlQuestion.innerHTML=q?`<div class="muted">${q.type==='mcq'?'객관식':'주관식'}</div><div style="font-size:15px;margin-top:4px">${esc(q.text)}</div>`:'대기';
-    el.shortGrader.classList.toggle('hidden',!(q&&q.type==='short'));
-    updatePresentation(r);
+  let correct=null;
+  if(q.type==='mcq' && typeof value==='number'){ correct = (value === (q.answerIndex??-999)); }
+  if(q.type==='short' && typeof value==='string'){
+    const norm=s=>String(s).trim().toLowerCase();
+    if(q.answerText) correct = (norm(value)===norm(q.answerText));
   }
 
+  await setDoc(ref, {
+    name: me.name,
+    [`answers.${idx}`]: { value, correct: (correct===true), revealed: r.reveal || false }
+  }, { merge:true });
+}
+
+async function grade(userId, qIndex, isOk){
+  await setDoc(doc(respCol(roomId), userId), {
+    [`answers.${qIndex}.correct`]: !!isOk,
+    [`answers.${qIndex}.revealed`]: true
+  }, { merge:true });
+}
+
+/* =========================
+   타이머
+   ========================= */
+function startTimer(sec){
+  stopTimer();
+  const end = Date.now()+sec*1000;
+  leftTimer = setInterval(()=>{
+    const remain = Math.max(0, Math.floor((end-Date.now())/1000));
+    els.leftSec.textContent = `${pad(Math.floor(remain/60))}:${pad(remain%60)}`;
+    if(remain<=0){ stopTimer(); updateDoc(roomRef(roomId), { accept:false }); }
+  }, 250);
+}
+function stopTimer(){
+  if(leftTimer){ clearInterval(leftTimer); leftTimer=null; }
+  els.leftSec.textContent="00:00";
+}
+
+/* =========================
+   렌더링 (관리자/학생/발표 공용)
+   ========================= */
+function renderRoom(r){
+  // 진행/상태
+  const total = r.questions?.length||0;
+  const idx = r.currentIndex;
+  els.progress.textContent = `${Math.max(0, idx+1)}/${total}`;
+  els.chkAccept.checked = !!r.accept;
+  els.chkReveal.checked = !!r.reveal;
+  els.nowQuestion.textContent = (idx>=0 && r.questions[idx])? r.questions[idx].text : "-";
+
+  // 프레젠테이션
+  els.pTitle.textContent = (r.title||roomId);
+  $("#pOpts").innerHTML="";
+  if(idx>=0 && r.questions[idx]){
+    const q = r.questions[idx];
+    els.pQ.textContent = q.text;
+    if(q.type==='mcq'){
+      q.options.forEach((t,i)=>{
+        const b=document.createElement("div");
+        b.className="popt"; b.textContent=`${i+1}. ${t}`;
+        els.pOpts.appendChild(b);
+      });
+    }
+  } else {
+    els.pQ.textContent = "대기 중…";
+  }
+
+  // 학생 화면
   if(MODE==='student'){
-    const idx=r.currentIndex; const q=r.questions?.[idx];
-    if(r.mode!=='active'||!q){ el.quizTypeBadge.textContent='대기'; el.questionText.textContent='대기 중입니다…'; el.progressText.textContent='0 / 0'; el.optionsContainer.innerHTML=''; el.subjectiveBox.classList.add('hidden'); el.btnSubmitMCQ.classList.add('hidden'); return; }
-    el.progressText.textContent=`${idx+1} / ${r.questions.length}`; el.quizTypeBadge.textContent=q.type==='mcq'?'객관식':'주관식'; el.questionText.textContent=q.text;
-    if(q.type==='mcq'){ renderMCQ(q,r.accept,r.reveal); el.subjectiveBox.classList.add('hidden'); el.btnSubmitMCQ.classList.remove('hidden'); }
-    else{ el.optionsContainer.innerHTML=''; el.subjectiveBox.classList.remove('hidden'); el.btnSubmitMCQ.classList.add('hidden'); el.btnSubmitSubjective.disabled=!r.accept; el.answerState.textContent=''; }
+    if(r.mode!=='active' || idx<0){ // 대기
+      els.badgeType.textContent="대기";
+      els.sQText.textContent="대기 중입니다…";
+      els.mcqBox.innerHTML=""; els.shortBox.classList.add("hide");
+      return;
+    }
+    const q = r.questions[idx];
+    els.badgeType.textContent = (q.type==='mcq'?'객관식':'주관식');
+    els.sQText.textContent = q.text;
+
+    if(q.type==='mcq'){
+      els.mcqBox.innerHTML="";
+      els.shortBox.classList.add("hide");
+      q.options.forEach((opt,i)=>{
+        const btn=document.createElement("button");
+        btn.className="optbtn"; btn.textContent=`${i+1}. ${opt}`;
+        btn.disabled = !r.accept;
+        btn.addEventListener("click", ()=>submit(i));
+        els.mcqBox.appendChild(btn);
+      });
+    } else {
+      els.mcqBox.innerHTML="";
+      els.shortBox.classList.remove("hide");
+      els.btnShortSend.disabled = !r.accept;
+    }
   }
-  buildResultsHead(r);
 }
 
-function renderMCQ(q,accepting,revealed){
-  el.optionsContainer.innerHTML=''; const local=window.__myAnswer||{};
-  q.options.forEach((opt,i)=>{const b=document.createElement('button'); b.className='option'; b.textContent=opt; b.dataset.opt=String(i);
-    if(local.idx===i) b.classList.add('selected');
-    if(revealed){if(local.idx===i) b.classList.add(local.correct?'correct':'wrong'); if(i===q.answerIndex) b.classList.add('correct');}
-    b.onclick=()=>{window.__myAnswer={idx:i}; $$('.option',el.optionsContainer).forEach(x=>x.classList.remove('selected')); b.classList.add('selected');};
-    el.optionsContainer.appendChild(b);
-  }); el.btnSubmitMCQ.disabled=!accepting;
-}
+function renderResponses(list){
+  if(MODE!=='admin') return;
+  const r = window.__room||{}; const idx=r.currentIndex; const q=r.questions?.[idx];
 
-function updatePresentation(r){
-  const q=r.questions?.[r.currentIndex]; el.pptTitle.textContent=r.title||'-';
-  el.pptSub.textContent=r.currentIndex>=0?`문항 ${r.currentIndex+1}/${r.questions?.length||0}`:'-';
-  if(!q){ el.pptQuestion.textContent='대기 중…'; el.pptOptions.innerHTML=''; return; }
-  el.pptQuestion.textContent=q.text; el.pptOptions.innerHTML='';
-  if(q.type==='mcq'){ q.options.forEach((t,i)=>{const d=document.createElement('div'); d.className='option'; d.textContent=`${i+1}. ${t}`; el.pptOptions.appendChild(d);}); }
-  else{ const d=document.createElement('div'); d.className='muted'; d.textContent='주관식 문항입니다.'; el.pptOptions.appendChild(d); }
-}
+  // 칩(제출 현황)
+  els.chips.innerHTML="";
+  list.forEach(s=>{
+    const a = s.answers?.[idx];
+    const chip=document.createElement("div");
+    chip.className="chip " + (a? (a.correct?'ok':'no') : 'wait');
+    chip.textContent = s.name||s.id;
+    els.chips.appendChild(chip);
+  });
 
-async function renderResponses(arr){
-  el.ctlJoin.textContent=String(arr.length);
-  const r=window.__room; if(!r) return;
-  el.chips.innerHTML=''; let submit=0,ok=0,bad=0,out=0;
-  arr.forEach(s=>{const a=s.answers?.[r.currentIndex]; const tag=document.createElement('div'); tag.className='chip'; tag.textContent=s.name||s.id;
-    if(s.alive===false){tag.classList.add('bad');out++;} if(a){submit++; if(a.correct) ok++; else bad++;} el.chips.appendChild(tag); });
-  el.pptSubmit.textContent=submit; el.pptOk.textContent=ok; el.pptBad.textContent=bad; el.pptOut.textContent=out;
-
-  const q=r.questions?.[r.currentIndex];
-  if(MODE==='teacher' && q && q.type==='short'){
-    el.shortAnswers.innerHTML=''; arr.forEach(s=>{const a=s.answers?.[r.currentIndex]; if(!a||typeof a.value!=='string') return;
-      const row=document.createElement('div'); row.className='row'; const left=document.createElement('div'); left.textContent=`${s.name}: ${a.value}`;
-      const right=document.createElement('div');
-      const okBtn=btn('정답','btn ghost',()=>gradeAnswer(s.id,r.currentIndex,true));
-      const noBtn=btn('오답','btn ghost',()=>gradeAnswer(s.id,r.currentIndex,false));
-      right.appendChild(okBtn); right.appendChild(noBtn); row.appendChild(left); row.appendChild(right); el.shortAnswers.appendChild(row);
+  // 주관식 채점 목록
+  els.shortAnswers.innerHTML="";
+  if(q && q.type==='short'){
+    list.forEach(s=>{
+      const a=s.answers?.[idx]; if(!a || typeof a.value!=='string') return;
+      const row=document.createElement("div"); row.className="row between";
+      row.innerHTML=`<span>${s.name}: ${a.value}</span>`;
+      const box=document.createElement("div");
+      const ok=document.createElement("button"); ok.className="btn ghost"; ok.textContent="정답";
+      const no=document.createElement("button"); no.className="btn ghost"; no.textContent="오답";
+      ok.onclick=()=>grade(s.id, idx, true);
+      no.onclick=()=>grade(s.id, idx, false);
+      box.append(ok,no); row.append(box);
+      els.shortAnswers.appendChild(row);
     });
   }
-  buildResultsBody(r,arr);
+
+  // 결과 테이블
+  const tbl=document.createElement("table");
+  const thead=document.createElement("thead");
+  const tr=document.createElement("tr");
+  ["이름", ...(r.questions||[]).map((_,i)=>`Q${i+1}`), "점수","상태"].forEach(h=>{
+    const th=document.createElement("th"); th.textContent=h; tr.appendChild(th);
+  });
+  thead.appendChild(tr); tbl.appendChild(thead);
+  const tb=document.createElement("tbody");
+  list.forEach(s=>{
+    let score=0;
+    const tr=document.createElement("tr");
+    const tdN=document.createElement("td"); tdN.textContent=s.name||s.id; tr.appendChild(tdN);
+    (r.questions||[]).forEach((q,i)=>{
+      const a=s.answers?.[i];
+      const td=document.createElement("td");
+      td.textContent = a? (q.type==='mcq' ? (typeof a.value==='number'? a.value+1 : '-') : (a.value??'-')) : '-';
+      if(a?.correct) score++;
+      tr.appendChild(td);
+    });
+    const tdS=document.createElement("td"); tdS.textContent=String(score); tr.appendChild(tdS);
+    const tdL=document.createElement("td"); tdL.textContent= s.alive===false? "out":"alive"; tr.appendChild(tdL);
+    tb.appendChild(tr);
+  });
+  tbl.appendChild(tb);
+  els.resultsTable.innerHTML=""; els.resultsTable.appendChild(tbl);
 }
-const btn=(t,c,fn)=>{const b=document.createElement('button'); b.className=c; b.textContent=t; b.onclick=fn; return b;};
 
-/* ---------- 학생 참가/제출 ---------- */
-el.btnJoin.addEventListener('click',async()=>{
-  if(MODE!=='student') return; if(!roomId) return toast('세션에 먼저 접속하세요.');
-  const name=el.studentName.value.trim(); if(!name) return toast('이름을 입력하세요.');
-  const uid=(policy==='device')?deviceToken():name; me={id:uid,name};
-  await fsSetResponse(roomId,uid,{name,joinedAt:Date.now(),alive:true}); toast(`${name} 님, 참가 완료!`);
-});
-function deviceToken(){let t=localStorage.getItem(KEYS.DEVICE_TOKEN);if(!t){t=id();localStorage.setItem(KEYS.DEVICE_TOKEN,t);}return t;}
-
-el.btnSubmitSubjective.addEventListener('click',async()=>{const r=window.__room; if(!r||!r.accept) return toast('지금은 제출할 수 없습니다.');
-  const val=el.subjectiveInput.value.trim(); if(!val) return toast('정답을 입력하세요.'); await submitAnswer(val);
-});
-el.btnSubmitMCQ.addEventListener('click',async()=>{const r=window.__room; if(!r||!r.accept) return toast('지금은 제출할 수 없습니다.');
-  const chosen=window.__myAnswer?.idx; if(typeof chosen!=='number') return toast('보기 하나를 선택하세요.'); await submitAnswer(chosen);
-});
-
-async function submitAnswer(value){
-  if(!me.id) return toast('먼저 참가하세요.');
-  const r=await fsGetRoom(roomId); const idx=r.currentIndex; const q=r.questions?.[idx]; if(!q) return;
-  const mine=(await fsGetResponses(roomId)).find(x=>x.id===me.id); if(mine?.answers?.[idx]) return toast('이미 제출했습니다.');
-  let correct=false; if(q.type==='mcq'&&typeof value==='number') correct=value===q.answerIndex;
-  if(q.type==='short'&&typeof value==='string'){const norm=s=>String(s).trim().toLowerCase(); if(q.answerText) correct=norm(value)===norm(q.answerText);}
-  await fsSetResponse(roomId,me.id,{name:me.name,answers:{[idx]:{value,correct,revealed:q.type==='mcq'}}});
-  if(r.goldenBell && !correct) await fsSetResponse(roomId,me.id,{alive:false});
-  if(q.type==='short') el.answerState.textContent=`제출: ${value}`; else el.answerState.textContent=correct?'정답!':'제출 완료';
+/* =========================
+   링크/QR
+   ========================= */
+function buildStudentLink(){
+  const url = new URL(location.href);
+  url.searchParams.set("role","student");
+  url.searchParams.set("room", roomId);
+  els.studentLink.value = url.toString();
+  // QR 그리기
+  if(window.QRCode){
+    window.QRCode.toCanvas(els.qrCanvas, els.studentLink.value, { width:192 }, (err)=>{ if(err) console.warn(err); });
+  }
 }
-async function gradeAnswer(uid,i,ok){await fsSetResponse(roomId,uid,{answers:{[i]:{correct:!!ok,revealed:true}}}); if(window.__room?.goldenBell&&!ok) await fsSetResponse(roomId,uid,{alive:false});}
 
-/* ---------- 결과표/CSV ---------- */
-function buildResultsHead(r){const n=r.questions?.length||0; el.resultsHead.innerHTML=''; ['이름',...Array.from({length:n},(_,i)=>`Q${i+1}`),'점수','상태'].forEach(t=>{const th=document.createElement('th'); th.textContent=t; el.resultsHead.appendChild(th);});}
-function buildResultsBody(r,arr){
-  el.resultsBody.innerHTML=''; const n=r.questions?.length||0;
-  arr.forEach(s=>{const tr=document.createElement('tr'); const tdN=document.createElement('td'); tdN.textContent=s.name||s.id; tr.appendChild(tdN);
-    let score=0; for(let i=0;i<n;i++){const td=document.createElement('td'); const a=s.answers?.[i];
-      if(a){if(a.correct) score++; const q=r.questions[i]; td.textContent=q.type==='mcq'?(typeof a.value==='number'?String(a.value+1):'-'):(a.value||'-');} else td.textContent='-';
-      tr.appendChild(td);} const tdS=document.createElement('td'); tdS.textContent=String(score); tr.appendChild(tdS);
-    const tdA=document.createElement('td'); tdA.textContent=s.alive===false?'out':'alive'; tr.appendChild(tdA); el.resultsBody.appendChild(tr);});
-}
-el.btnExportCSV.addEventListener('click',async()=>{if(!roomId) return;const r=await fsGetRoom(roomId),arr=await fsGetResponses(roomId);
-  const head=['userId','name',...r.questions.map((_,i)=>`Q${i+1}`),'score','alive'].join(',');
-  const rows=[head]; arr.forEach(s=>{let score=0; const ans=r.questions.map((q,i)=>{const a=s.answers?.[i]; if(a?.correct) score++; return q.type==='mcq'?(typeof a?.value==='number'?String(a.value+1):''):(a?.value??'');});
-    rows.push([csvEsc(s.id),csvEsc(s.name),...ans.map(csvEsc),score,s.alive===false?'out':'alive'].join(','));});
-  const blob=new Blob([rows.join('\n')],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${r.title||roomId}-results.csv`; a.click(); URL.revokeObjectURL(a.href);
-});
-el.btnResetAll.addEventListener('click',async()=>{if(!roomId) return;if(!confirm('모든 응답과 진행 상태를 초기화할까요?')) return;
-  await fsSetRoom(roomId,{mode:'idle',accept:false,reveal:false,currentIndex:-1,timerEndAt:null,responses:ENV.useFS?undefined:{}});
-  if(ENV.useFS){const arr=await fsGetResponses(roomId);for(const x of arr) await fsSetResponse(roomId,x.id,{answers:{},alive:true});}
-  toast('초기화 완료');
+/* =========================
+   유틸
+   ========================= */
+function makeKey(){ return Math.random().toString(36).slice(2,10); }
+
+/* =========================
+   이벤트
+   ========================= */
+els.btnAdmin.onclick = ()=>{ setMode("admin"); saveLocal(); };
+els.btnStudent.onclick = ()=>{ setMode("student"); saveLocal(); };
+
+els.btnConnect.onclick = connect;
+
+[els.tabBuild, els.tabControl, els.tabPresent, els.tabResults].forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    [els.tabBuild,els.tabControl,els.tabPresent,els.tabResults].forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    els.pBuild.classList.toggle("hide", btn!==els.tabBuild || MODE!=='admin');
+    els.pControl.classList.toggle("hide", btn!==els.tabControl || MODE!=='admin');
+    els.pPresent.classList.toggle("hide", btn!==els.tabPresent ? true:false);
+    els.pResults.classList.toggle("hide", btn!==els.tabResults || MODE!=='admin');
+  });
 });
 
-/* ---------- 탭 ---------- */
-el.tabs.forEach(t=>t.addEventListener('click',()=>{
-  el.tabs.forEach(x=>x.classList.remove('pri')); t.classList.add('pri');
-  [el.tabBuild,el.tabControl,el.tabResults,el.tabPresent].forEach(p=>p.classList.add('hidden'));
-  const n=t.dataset.tab; if(n==='build') el.tabBuild.classList.remove('hidden'); if(n==='control') el.tabControl.classList.remove('hidden');
-  if(n==='results') el.tabResults.classList.remove('hidden'); if(n==='present') el.tabPresent.classList.remove('hidden');
-}));
+els.btnBuildForm.onclick = ()=>{
+  const n = Math.max(1, Math.min(20, parseInt(els.questionCount.value,10)||3));
+  els.builder.innerHTML="";
+  for(let i=0;i<n;i++) els.builder.appendChild(cardRow(i+1));
+};
+els.btnLoadSample.onclick = ()=>{
+  const S = [
+    {type:'mcq', text:'가장 큰 행성?', options:['지구','목성','화성','금성'], answerIndex:1},
+    {type:'short', text:'물의 끓는점(°C)?', answerText:'100'},
+    {type:'mcq', text:'태양계 별명?', options:['Milky','Solar','Sunset','Lunar'], answerIndex:1},
+  ];
+  els.builder.innerHTML=""; S.forEach((q,i)=>els.builder.appendChild(cardRow(i+1,q)));
+  els.quizTitle.value = "샘플 퀴즈";
+  els.questionCount.value = S.length;
+};
+els.btnSaveQuiz.onclick = async ()=>{
+  const payload = collectBuilder();
+  if(payload.questions.length===0) return alert("문항을 추가하세요.");
+  await setDoc(roomRef(roomId), { title: payload.title, questions: payload.questions }, { merge:true });
+  alert("저장 완료!");
+};
 
-/* ---------- 자동 재접속 ---------- */
-window.addEventListener('DOMContentLoaded',async()=>{
-  const url=new URL(location.href); const pRoom=url.searchParams.get('room'); const isStudent=url.searchParams.get('student')==='1';
-  const lastRoom=localStorage.getItem(KEYS.LAST_ROOM); const lastMode=localStorage.getItem(KEYS.LAST_MODE)||'teacher';
-  setMode(isStudent?'student':lastMode);
-  const target=pRoom||lastRoom; if(target){ el.roomIdInput.value=target; await connectRoom(); }
-  if(isStudent) setMode('student');
-});
+els.btnStart.onclick = startQuiz;
+els.btnPrev.onclick  = ()=>step(-1);
+els.btnNext.onclick  = ()=>step(+1);
+els.btnEndAll.onclick= finishAll;
+
+els.chkAccept.onchange = ()=> updateDoc(roomRef(roomId), { accept: !!els.chkAccept.checked });
+els.chkReveal.onchange = ()=> updateDoc(roomRef(roomId), { reveal: !!els.chkReveal.checked });
+
+els.btnTimerGo.onclick   = ()=> startTimer(Math.max(5, Math.min(600, parseInt(els.timerSec.value,10)||30)));
+els.btnTimerStop.onclick = stopTimer;
+
+els.btnCopyLink.onclick = async ()=>{
+  await navigator.clipboard.writeText(els.studentLink.value);
+  els.btnCopyLink.textContent="복사됨"; setTimeout(()=>els.btnCopyLink.textContent="링크 복사", 1200);
+};
+els.btnOpenStudent.onclick = ()=>window.open(els.studentLink.value, "_blank");
+
+els.btnExportCSV.onclick = async ()=>{
+  const r = (await getDoc(roomRef(roomId))).data();
+  const snap = await getDocs(respCol(roomId));
+  const rows = [];
+  rows.push(["userId","name",...(r.questions||[]).map((_,i)=>`Q${i+1}`),"score"].join(","));
+  snap.forEach(d=>{
+    const s=d.data(); let score=0;
+    const answers=(r.questions||[]).map((q,i)=>{
+      const a=s.answers?.[i]; if(a?.correct) score++;
+      return q.type==='mcq' ? (typeof a?.value==='number'? a.value+1 : "") : (a?.value??"");
+    });
+    rows.push([d.id, `"${(s.name||"").replace(/"/g,'""')}"`, ...answers, score].join(","));
+  });
+  const blob = new Blob([rows.join("\n")], {type:"text/csv"}); const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download=`${r.title||roomId}-results.csv`; a.click(); URL.revokeObjectURL(a.href);
+};
+els.btnResetAll.onclick = async ()=>{
+  if(!confirm("모든 응답/점수를 초기화할까요?")) return;
+  await setDoc(roomRef(roomId), { mode:"idle", currentIndex:-1, accept:false, reveal:false }, { merge:true });
+  const snap = await getDocs(respCol(roomId));
+  const batch = [];
+  snap.forEach(d=> batch.push(setDoc(doc(respCol(roomId), d.id), { answers:{}, alive:true }, { merge:true })));
+  await Promise.all(batch);
+  alert("초기화 완료");
+};
+els.btnSaveJSON.onclick = async ()=>{
+  const r = (await getDoc(roomRef(roomId))).data();
+  const res = await getDocs(respCol(roomId));
+  const obj = { roomId, room:r, responses: res.docs.map(d=>({ id:d.id, ...d.data() })) };
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(obj,null,2)],{type:"application/json"}));
+  a.download=`${roomId}-backup.json`; a.click(); URL.revokeObjectURL(a.href);
+};
+els.fileLoad.onchange = async (e)=>{
+  const f=e.target.files?.[0]; if(!f) return;
+  const text=await f.text(); const data=JSON.parse(text);
+  if(data.room) await setDoc(roomRef(roomId), data.room, { merge:true });
+  if(Array.isArray(data.responses)){
+    await Promise.all(data.responses.map(x=> setDoc(doc(respCol(roomId), x.id), x, { merge:true })));
+  }
+  alert("불러오기 완료");
+  e.target.value="";
+};
+
+els.btnJoin.onclick = join;
+els.btnShortSend.onclick = ()=> submit((els.shortInput.value||"").trim());
+
+/* =========================
+   시작
+   ========================= */
+autoReconnect();
+
+// URL 파라미터로 학생모드 바로 열기 (예: ?role=student&room=class1)
+(function bootstrapFromURL(){
+  const url=new URL(location.href); const role=url.searchParams.get("role"); const rid=url.searchParams.get("room");
+  if(role==='student'){ setMode("student"); }
+  if(rid){ els.roomId.value=rid; connect(); }
+})();
