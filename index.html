@@ -8,8 +8,7 @@
   <style>
     :root{
       --bg:#0f1623; --panel:#141c2b; --card:#101828; --muted:#93a0b8; --text:#e7edf6;
-      --pri:#5b6fff; --ok:#19c37d; --warn:#ffb020; --bad:#ff5d5d; --chip:#1b2540;
-      --accent:#7f8aff;
+      --pri:#5b6fff; --ok:#19c37d; --warn:#ffb020; --bad:#ff5d5d; --chip:#1b2540; --accent:#7f8aff;
     }
     *{box-sizing:border-box}
     html,body{height:100%}
@@ -18,15 +17,15 @@
       font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,Malgun Gothic,sans-serif;
       font-size:14px; line-height:1.45;
     }
-    a{color:inherit}
-    .wrap{max-width:1200px;margin:0 auto;padding:18px}
+    .wrap{max-width:1200px;margin:0 auto;padding:16px}
     .row{display:flex;gap:10px;align-items:center}
     .col{display:flex;flex-direction:column;gap:10px}
     .panel{background:var(--panel);border:1px solid #1d2740;border-radius:12px;padding:14px}
     .card{background:var(--card);border:1px solid #1b2340;border-radius:10px;padding:12px}
-    .grid{display:grid;gap:10px}
-    .g2{grid-template-columns:1.25fr .75fr}
-    h1{font-size:22px;margin:0 0 4px}
+    .grid{display:grid;gap:12px}
+    .g2{grid-template-columns:1fr 340px}
+    @media (max-width:1024px){ .g2{grid-template-columns:1fr} }
+    h1{font-size:22px;margin:0 0 2px}
     h2{font-size:15px;margin:0 0 6px;color:#cfe1ff}
     label.small{font-size:12px;color:var(--muted)}
     input,select,textarea{
@@ -34,10 +33,7 @@
       padding:8px 10px;outline:none; font-size:13px;
     }
     input:focus,select:focus,textarea:focus{border-color:var(--accent)}
-    .btn{
-      border:1px solid #2b3760;background:#111a2f;color:#e6ecff;border-radius:9px;
-      padding:7px 12px;font-weight:600;cursor:pointer;font-size:13px
-    }
+    .btn{border:1px solid #2b3760;background:#111a2f;color:#e6ecff;border-radius:9px;padding:7px 12px;font-weight:600;cursor:pointer;font-size:13px}
     .btn:hover{background:#17223a}
     .btn.pri{background:var(--pri);border-color:var(--pri);color:#fff}
     .btn.ok{background:var(--ok);border-color:var(--ok);color:#042214}
@@ -47,7 +43,7 @@
     .chip{background:var(--chip);border:1px solid #263661;border-radius:999px;padding:6px 9px;font-size:12px}
     .muted{color:var(--muted)}
     .hidden{display:none!important}
-    .table{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden;border-radius:10px;border:1px solid #28345b}
+    .table{width:100%;border-collapse:separate;border-spacing:0;border-radius:10px;border:1px solid #28345b;overflow:hidden}
     .table th,.table td{padding:8px 10px;border-bottom:1px solid #22305a;text-align:center}
     .table th{background:#141d31;color:#c8d5ff;font-weight:700}
     .pill{border-radius:999px;padding:2px 8px;font-size:12px;border:1px solid #2a365f;background:#132040}
@@ -55,12 +51,10 @@
     .pill.bad{background:#2a1620;border-color:#5a2c3f;color:#ffd0d0}
     .big{font-size:28px;font-weight:800}
     .qrBox{display:grid;place-items:center;background:#0c1425;border:1px dashed #2a355a;border-radius:10px;height:200px}
-    .rightcol{position:sticky;top:10px}
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
-    .help{font-size:12px;color:#a9b6d8;line-height:1.55}
-    .help h3{margin:12px 0 6px;font-size:12px;color:#cfe1ff;display:flex;gap:6px;align-items:center}
-    .help .icon{font-size:12px}
-    .kbd{border:1px solid #2b365f;background:#0f1930;border-radius:6px;padding:0 6px;font-size:11px}
+    .help{font-size:12px;color:#a9b6d8;line-height:1.55;padding:10px;border:1px solid #22305a;border-radius:10px;background:#0e1628}
+    .help h3{margin:8px 0 6px;font-size:12px;color:#cfe1ff;display:flex;gap:6px;align-items:center}
+    .help .kbd{border:1px solid #2b365f;background:#0f1930;border-radius:6px;padding:0 6px;font-size:11px}
     .present{background:#040a18;border:1px solid #2a355a;border-radius:10px;padding:12px}
     .present h2{font-size:18px}
     .option{border:1px solid #2d3a62;background:#0f1730;color:#dae7ff;border-radius:9px;padding:8px 10px;cursor:pointer}
@@ -69,7 +63,7 @@
     .option.wrong{border-color:#ff6b6b;box-shadow:0 0 0 2px #ff6b6b33 inset}
   </style>
 
-  <!-- Firebase (선택, 온라인이면 자동 사용) -->
+  <!-- Firebase (옵션) -->
   <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <!-- QR 라이브러리 -->
@@ -79,10 +73,10 @@
 </head>
 <body>
   <div class="wrap">
-    <!-- 헤더 -->
-    <div class="row" style="justify-content:space-between;align-items:flex-end">
+    <!-- 헤더(타이틀/연결 + 가이드) -->
+    <div class="grid g2">
       <div>
-        <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">
+        <div class="row" style="gap:8px;flex-wrap:wrap">
           <span class="tag">LIVE</span>
           <span class="muted">세션</span>
           <input id="roomIdInput" class="mono" placeholder="예: classA" style="width:200px" />
@@ -90,25 +84,25 @@
           <button id="btnTeacherMode" class="btn">관리자</button>
           <button id="btnStudentMode" class="btn ghost">학생</button>
         </div>
-        <h1 style="margin-top:8px">실시간 퀴즈</h1>
+        <h1 style="margin-top:6px">실시간 퀴즈</h1>
         <div id="statusText" class="muted">관리자 모드: 세션을 연결해 주세요.</div>
       </div>
 
-      <aside class="help rightcol" style="max-width:420px">
-        <h3><span class="icon">📘</span>교사용 가이드</h3>
+      <aside class="help">
+        <h3>📘 교사용 가이드</h3>
         <ul style="margin:0 0 6px 16px;padding:0">
-          <li>세션코드 입력 → <span class="kbd">접속</span> (다음 접속부터는 자동 재접속)</li>
-          <li><span class="kbd">문항 만들기</span>에서 문항 작성 → <span class="kbd">저장</span></li>
-          <li><span class="kbd">진행</span> 탭: <span class="kbd">시작</span> → <span class="kbd">제출 허용</span> 체크</li>
-          <li>필요 시 <span class="kbd">타이머 시작</span> (시간 종료 시 자동 공개/자동 다음 옵션)</li>
+          <li>세션코드 입력 → <span class="kbd">접속</span> (다음 접속부터 자동 재접속)</li>
+          <li><span class="kbd">문항 만들기</span>에서 작성 → <span class="kbd">저장</span></li>
+          <li><span class="kbd">진행</span> 탭: <span class="kbd">시작</span> 후 <span class="kbd">제출 허용</span> 체크</li>
+          <li><span class="kbd">타이머 시작</span> (시간 종료 시 자동 공개/자동 다음)</li>
           <li>골든벨 ON: 오답자 자동 탈락</li>
-          <li><span class="kbd">프레젠테이션</span> 화면으로 학생들과 함께 보기</li>
-          <li><span class="kbd">결과</span> 탭: 채점/CSV 저장, 전체 초기화</li>
+          <li><span class="kbd">프레젠테이션</span> 화면으로 함께 보기</li>
+          <li><span class="kbd">결과</span>: 채점/CSV, 전체 초기화</li>
         </ul>
-        <h3><span class="icon">👩‍🎓</span>학생 가이드</h3>
+        <h3>🦊 학생 가이드</h3>
         <ul style="margin:0 0 0 16px;padding:0">
           <li>링크/QR 접속 → 이름 입력 → <span class="kbd">참가</span></li>
-          <li>문제 화면에서 답 선택 → <span class="kbd">제출</span></li>
+          <li>문제에서 답 선택/입력 → <span class="kbd">제출</span></li>
           <li>골든벨 ON: 오답 시 탈락 표시</li>
         </ul>
       </aside>
