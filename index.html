@@ -9,7 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 </head>
 <body>
-  <!-- 상단 바: 세션 상태 + 모드별 컨트롤 -->
+  <!-- 상단 바 -->
   <header class="topbar">
     <div class="brand">
       <span class="pill live">LIVE</span>
@@ -20,7 +20,7 @@
       <span id="roomName" class="roomname">세션: -</span>
       <span id="roomState" class="state off">오프라인</span>
 
-      <!-- 관리자 전용 접속/모드 버튼 -->
+      <!-- 관리자 전용 -->
       <div id="adminControls" class="admin-only">
         <input id="roomId" class="input sm" placeholder="세션코드 (예: class1)" />
         <button id="btnConnect" class="btn primary">접속</button>
@@ -28,7 +28,7 @@
         <button id="btnStudent" class="btn ghost">학생</button>
       </div>
 
-      <!-- 학생 모드용: 이름 입력 + 참가 버튼 (접속/관리자 버튼 제거) -->
+      <!-- 학생 전용: 이름 입력 + 참가 -->
       <div id="studentJoinBox" class="student-only hide">
         <input id="studentName" class="input" placeholder="이름 입력" />
         <button id="btnJoin" class="btn">참가</button>
@@ -36,7 +36,7 @@
     </div>
   </header>
 
-  <!-- 관리자 탭 (학생 모드에서는 감춤) -->
+  <!-- 관리자 탭 -->
   <nav id="adminTabs" class="tabs hide">
     <button id="tabBuild"    class="tab">문항 만들기</button>
     <button id="tabOptions"  class="tab">옵션</button>
@@ -46,15 +46,15 @@
 
   <main class="container">
 
-    <!-- 학생 패널: 하단에 프레젠테이션이 보이지 않도록 “학생 전용” 문제 뷰만 제공 -->
+    <!-- 학생 화면(프레젠테이션 직접 노출 X) -->
     <section id="studentPanel" class="card hide">
-      <div id="studentWait" class="present-hero">
+      <div class="present-hero">
         <div class="present-title" id="sTitle">-</div>
         <div class="present-q" id="sQText">대기 중입니다…</div>
         <div class="present-timer" id="sTimer">00:00</div>
       </div>
 
-      <!-- 객관식: 보기 선택 후 “답안 제출” 버튼으로 제출 -->
+      <!-- 객관식: 보기 선택 + 제출 버튼 -->
       <div id="sMcqBox" class="grid"></div>
 
       <!-- 주관식 -->
@@ -63,14 +63,13 @@
         <button id="btnShortSend" class="btn primary">제출</button>
       </div>
 
-      <!-- 객관식 공통 제출 버튼 -->
       <div class="row gap mt">
         <button id="btnSubmitChoice" class="btn primary" disabled>답안 제출</button>
-        <div id="submitHint" class="hint">보기 선택 후 제출을 누르세요</div>
+        <div id="submitHint" class="hint">보기를 누른 뒤 제출을 누르세요</div>
       </div>
     </section>
 
-    <!-- (관리자) 문항 만들기 -->
+    <!-- 문항 만들기(관리자) -->
     <section id="panelBuild" class="card hide">
       <div class="row between mb">
         <input id="quizTitle" class="input" placeholder="퀴즈 제목" />
@@ -84,11 +83,11 @@
       <div id="builder" class="col gap"></div>
     </section>
 
-    <!-- (관리자) 옵션: 저장 버튼 추가 → 저장 후 QR/링크 노출 -->
+    <!-- 옵션(관리자) -->
     <section id="panelOptions" class="card hide">
       <div class="grid2">
         <div>
-          <h3>제출 정책 / 진행 설정</h3>
+          <h3>제출 정책 / 진행</h3>
           <div class="split mt">
             <label class="switch"><input id="chkPolicyDevice" type="radio" name="policy" value="device" checked /><span>기기당 1회</span></label>
             <label class="switch"><input id="chkPolicyName"   type="radio" name="policy" value="name" /><span>실명당 1회</span></label>
@@ -130,7 +129,7 @@
       </div>
     </section>
 
-    <!-- (관리자) 프레젠테이션: 진행 버튼 여기로 이동 -->
+    <!-- 프레젠테이션(관리자) -->
     <section id="panelPresent" class="card hide">
       <div class="row between mb">
         <div class="row gap">
@@ -154,7 +153,7 @@
       <div id="pOpts" class="grid"></div>
     </section>
 
-    <!-- (관리자) 결과 -->
+    <!-- 결과(관리자) -->
     <section id="panelResults" class="card hide">
       <div class="row between mb">
         <div class="row gap">
@@ -169,14 +168,27 @@
         </div>
       </div>
 
+      <!-- 진행 중 현황 칩 -->
       <div id="chips" class="chips"></div>
+
+      <!-- 주관식 채점 -->
       <div id="shortAnswers" class="col gap mt"></div>
+
+      <!-- 리더보드(점수순) -->
+      <h3 class="mt">리더보드</h3>
+      <div id="leaderboard" class="mt"></div>
+
+      <!-- 골든벨 (탈락/부활) -->
+      <h3 class="mt">골든벨</h3>
+      <div id="goldenBell" class="col gap mt"></div>
+
+      <!-- 전체 결과표 -->
+      <h3 class="mt">전체 결과표</h3>
       <div id="resultsTable" class="mt"></div>
     </section>
 
   </main>
 
-  <!-- Firebase 모듈 & 앱 스크립트 -->
   <script type="module" src="./app.js"></script>
 </body>
 </html>
