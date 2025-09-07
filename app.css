@@ -34,9 +34,10 @@ body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-ap
 .badge{display:inline-block;background:#243146;color:#b7c7da;border:1px solid var(--border);padding:4px 8px;border-radius:999px;margin-right:8px}
 .switch,.radio,.check{display:flex;align-items:center;gap:8px;margin:8px 0}
 .hint{color:var(--muted)}
-.grid{display:grid;grid-template-columns:1fr 420px;gap:16px}
+.grid{display:grid;grid-template-columns:1fr 360px;gap:16px}
 .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
-.qr{width:320px;height:320px;background:transparent;border:1px dashed var(--border);border-radius:12px}
+/* QR 크기 축소 */
+.qr{width:220px;height:220px;background:transparent;border:1px dashed var(--border);border-radius:12px}
 
 .present{margin-top:10px;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px}
 .poptions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
