@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>실시간 퀴즈 (Live Quiz)</title>
+  <title>실시간 퀴즈</title>
   <link rel="stylesheet" href="./app.css" />
 
-  <!-- Firebase v9 (modular) -->
+  <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import { getFirestore }   from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
@@ -25,10 +25,10 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <span class="live-dot" id="liveDot"></span><strong>실시간 퀴즈</strong>
+      <span id="liveDot" class="live-dot"></span><strong>실시간 퀴즈</strong>
     </div>
 
-    <!-- 관리자 전용 헤더: 관리자 모드에서만 노출 -->
+    <!-- 관리자 전용(항상 관리자에서만 노출) -->
     <div class="session admin-only">
       <input id="roomId" class="input" placeholder="클래스(세션) 입력" />
       <button id="btnConnect" class="btn primary">접속</button>
@@ -37,10 +37,10 @@
     </div>
 
     <nav class="tabs admin-only">
-      <button id="tabBuild"   class="tab active" data-tab="build">① 문항</button>
-      <button id="tabOptions" class="tab"        data-tab="options">② 옵션</button>
-      <button id="tabPresent" class="tab"        data-tab="present">③ 프레젠테이션</button>
-      <button id="tabResults" class="tab"        data-tab="results">④ 결과</button>
+      <button id="tabBuild"   class="tab active">① 문항</button>
+      <button id="tabOptions" class="tab">② 옵션</button>
+      <button id="tabPresent" class="tab">③ 프레젠테이션</button>
+      <button id="tabResults" class="tab">④ 결과</button>
     </nav>
   </header>
 
@@ -64,9 +64,9 @@
     <div id="buildGuide" class="card hint">
       <h4>수동 출제 가이드</h4>
       <ol>
-        <li>객관식: <code>문항,보기1,보기2,보기3,보기4,정답번호</code></li>
-        <li>주관식: <code>문항,주관식,정답텍스트</code></li>
-        <li>예) <code>가장 큰 행성?,지구,목성,화성,금성,2</code></li>
+        <li>객관식: <code>문항, 보기1, 보기2, 보기3, 보기4, 정답번호</code></li>
+        <li>주관식: <code>문항, 주관식, 정답텍스트</code></li>
+        <li>예) <code>가장 큰 행성?, 지구, 목성, 화성, 금성, 2</code></li>
         <li>문항 옆 <b>이미지</b> 버튼으로 그림 포함 가능(프레젠테이션/학생화면에 표시)</li>
       </ol>
     </div>
@@ -74,7 +74,7 @@
     <div id="builder" class="builder"></div>
   </section>
 
-  <!-- 옵션 (학생 접속은 옵션 탭에서만 노출) -->
+  <!-- 옵션 (학생접속은 이 탭에서만 노출) -->
   <section id="panelOptions" class="panel hide">
     <div class="grid">
       <div class="card">
@@ -101,7 +101,7 @@
         <canvas id="qrCanvas" width="128" height="128" class="qr"></canvas>
         <div class="row wrap gap">
           <input id="studentLink" class="input grow" readonly />
-          <button id="btnCopyLink"   class="btn">복사</button>
+          <button id="btnCopyLink"    class="btn">복사</button>
           <button id="btnOpenStudent" class="btn">열기</button>
         </div>
         <p class="muted">※ 옵션 저장 후 QR/링크가 갱신됩니다.</p>
@@ -126,11 +126,11 @@
         <div class="right"><span id="leftSec" class="timer">00:00</span></div>
       </div>
 
-      <div class="board" id="board">
-        <div class="wait" id="presentWait">시작 버튼을 누르면 문항이 제시됩니다.</div>
+      <div class="board">
+        <div id="presentWait" class="wait">시작 버튼을 누르면 문항이 제시됩니다.</div>
         <div id="pTitle" class="title">-</div>
         <div id="pQ"     class="question">-</div>
-        <img id="pImg"   class="qimg hide" alt="문항 이미지" />
+        <img  id="pImg"  class="qimg hide" alt="문항 이미지" />
         <div id="pOpts"  class="options grid-4"></div>
       </div>
 
@@ -152,7 +152,7 @@
     <div id="resultsTable" class="table-wrap"></div>
   </section>
 
-  <!-- 학생 화면: 기본적으로 숨김(초기 랜딩에 노출되지 않도록) -->
+  <!-- 학생(초기에는 항상 숨김) -->
   <section id="studentPanel" class="student hide">
     <div class="row wrap gap align-center"><span id="studentTopInfo" class="muted">세션: - · 오프라인</span></div>
 
