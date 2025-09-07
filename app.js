@@ -7,7 +7,6 @@ import {
   collection, getDocs, runTransaction, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-// 프로젝트 설정 (요청하신 값)
 const firebaseConfig = {
   apiKey: "AIzaSyCClNc95ykYCudmLHTPgpewZ60bZ8zukbo",
   authDomain: "live-quiz-a14d1.firebaseapp.com",
@@ -29,28 +28,21 @@ let unsubRoom = null, unsubResp = null;
 let timerHandle = null;
 
 const A = {
-  // top
   liveDot: $("#liveDot"), roomId: $("#roomId"), btnConnect: $("#btnConnect"), btnLogout: $("#btnLogout"),
   roomStatus: $("#roomStatus"),
-  // tabs & panels
   tabBuild: $("#tabBuild"), tabOptions: $("#tabOptions"), tabPresent: $("#tabPresent"), tabResults: $("#tabResults"),
   pBuild: $("#panelBuild"), pOptions: $("#panelOptions"), pPresent: $("#panelPresent"), pResults: $("#panelResults"),
-  // build
   quizTitle: $("#quizTitle"), questionCount: $("#questionCount"),
   btnBuildForm: $("#btnBuildForm"), btnLoadSample: $("#btnLoadSample"), btnSaveQuiz: $("#btnSaveQuiz"), builder: $("#builder"),
-  // options
   policyDevice: $("#policyDevice"), policyName: $("#policyName"),
   chkAccept: $("#chkAccept"), chkReveal: $("#chkReveal"), chkBright: $("#chkBright"),
   timerSec: $("#timerSec"), btnTimerGo: $("#btnTimerGo"), btnTimerStop: $("#btnTimerStop"), leftSec: $("#leftSec"),
   btnSaveOptions: $("#btnSaveOptions"),
   qrCanvas: $("#qrCanvas"), studentLink: $("#studentLink"), btnCopyLink: $("#btnCopyLink"), btnOpenStudent: $("#btnOpenStudent"),
-  // present
   btnStart: $("#btnStart"), btnPrev: $("#btnPrev"), btnNext: $("#btnNext"), btnEndAll: $("#btnEndAll"),
   pTitle: $("#pTitle"), pQ: $("#pQ"), pOpts: $("#pOpts"),
   statJoin: $("#statJoin"), statSubmit: $("#statSubmit"), statOk: $("#statOk"), statNo: $("#statNo"),
-  // results
   btnExportCSV: $("#btnExportCSV"), btnResetAll: $("#btnResetAll"), resultsTable: $("#resultsTable"),
-  // student
   studentRoot: $("#studentRoot"), adminRoot: $("#adminRoot"), adminTopbar: $("#adminTopbar"),
   studentJoinBox: $("#studentJoinBox"), studentQuizBox: $("#studentQuizBox"), studentResultBox: $("#studentResultBox"),
   studentName: $("#studentName"), btnJoin: $("#btnJoin"), studentResult: $("#studentResult"),
@@ -85,13 +77,13 @@ async function ensureRoom(id){
  * Session connect/logout
  ***********************/
 async function connect(){
-  const id = (A.roomId?.value||"").trim();
+  const id = (A.roomId?.value||roomId||"").trim();
   if(!id){ alert("세션 코드를 입력하세요."); return; }
   roomId = id;
   await ensureRoom(roomId);
   listenRoom(); listenResponses();
   setOnline(true);
-  buildStudentLink(true);      // 링크/QR 즉시 갱신
+  buildStudentLink(true);      // 옵션-학생접속 즉시 반영
   activateTab(A.tabBuild);
   // 세션 잠금
   A.roomId.disabled = true;
@@ -106,7 +98,6 @@ function logout(){
   A.btnConnect.classList.remove("hide");
   A.btnLogout.classList.add("hide");
   A.roomStatus.textContent = "세션 아웃";
-  // 안전하게 초기 화면
   location.replace(location.pathname);
 }
 
@@ -216,19 +207,17 @@ function buildStudentLink(drawQR=false){
   if(roomId) url.searchParams.set("room", roomId);
   A.studentLink.value = url.toString();
   if(drawQR && window.QRCode && A.qrCanvas){
-    try{ QRCode.toCanvas(A.qrCanvas, A.studentLink.value, {width:320}, ()=>{}); }catch(e){ console.warn(e); }
+    try{ QRCode.toCanvas(A.qrCanvas, A.studentLink.value, {width:220}, ()=>{}); }catch(e){ console.warn(e); }
   }
 }
 
 /***********************
- * Render room/present/student/results
+ * Render
  ***********************/
 function renderRoom(r){
-  // top
+  // 상단/옵션 동기화
   if(A.roomStatus) A.roomStatus.textContent = `세션: ${roomId} · ${r? "온라인":"오프라인"}`;
   if(A.quizTitle && !A.quizTitle.value) A.quizTitle.value = r.title || "";
-
-  // options UI
   if(A.chkAccept) A.chkAccept.checked = !!r.accept;
   if(A.chkReveal) A.chkReveal.checked = !!r.reveal;
   if(A.chkBright) A.chkBright.checked = !!r.bright;
@@ -236,13 +225,14 @@ function renderRoom(r){
   if(A.policyName) A.policyName.checked = r.policy==="name";
   if(A.policyDevice) A.policyDevice.checked = r.policy!=="name";
 
-  // present
-  const idx = r.currentIndex; const total = r.questions?.length||0;
+  // 프레젠테이션 렌더: 시작 전 안내문구가 항상 보이도록 먼저 설정
   A.pTitle.textContent = r.title || roomId || "-";
+  A.pQ.textContent = "시작 버튼을 누르면 문항이 보입니다.";
   A.pOpts.innerHTML = "";
-  if(r.mode!=="active" || idx<0 || !r.questions[idx]){
-    A.pQ.textContent = "시작 버튼을 누르면 문항이 보입니다.";
-  } else {
+
+  const idx = r.currentIndex;
+  const hasQ = (r.questions && idx>=0 && r.questions[idx]);
+  if(r.mode==="active" && hasQ){
     const q = r.questions[idx];
     A.pQ.textContent = q.text;
     if(q.type==="mcq"){
@@ -253,11 +243,12 @@ function renderRoom(r){
     }
   }
 
-  // student UI
+  // 학생 화면
   if(S_MODE){
     A.stuSession.textContent = roomId? `세션 ${roomId}`:"";
-    A.stuOnline.textContent  = roomId? " · 온라인":"";
-    if(r.mode!=="active" || idx<0 || !r.questions[idx]){
+    A.stuOnline.textContent  = roomId? " · 온라인": "";
+    // 학생이 참가하기 전에는 참가박스 유지, 참가 후에만 퀴즈 박스
+    if(r.mode!=="active" || !hasQ){
       A.badgeType.textContent = "대기";
       A.sQText.textContent = "제출 버튼을 눌러주세요.";
       A.mcqBox.innerHTML = ""; A.shortBox.classList.add("hide");
@@ -287,7 +278,7 @@ function renderRoom(r){
     }
   }
 
-  // present stats
+  // 통계
   updateStats();
 }
 function renderResponses(list){
@@ -300,11 +291,11 @@ function updateStats(){
   const joined = list.length;
   const submitted = list.filter(s=>s.answers && s.answers[idx]!=null).length;
   const ok = list.filter(s=>s.answers && s.answers[idx]?.correct).length;
-  const no = submitted - ok;
+  const no = Math.max(0, submitted - ok);
   if(A.statJoin)   A.statJoin.textContent   = joined;
   if(A.statSubmit) A.statSubmit.textContent = submitted;
   if(A.statOk)     A.statOk.textContent     = ok;
-  if(A.statNo)     A.statNo.textContent     = Math.max(0,no);
+  if(A.statNo)     A.statNo.textContent     = no;
 }
 
 /***********************
@@ -342,9 +333,9 @@ function stopTimer(){ if(timerHandle){ clearInterval(timerHandle); timerHandle=n
  * Student join/submit
  ***********************/
 async function join(){
-  if(!roomId) return alert("세션 먼저 접속");
+  if(!roomId){ alert("세션이 유효하지 않습니다."); return; }
   const name=(A.studentName.value||"").trim();
-  if(!name) return alert("이름을 입력하세요.");
+  if(!name) return alert("이름 혹은 번호를 입력하세요!");
   me.id = localStorage.getItem("quiz.device") || Math.random().toString(36).slice(2,10);
   me.name = name;
   localStorage.setItem("quiz.device", me.id);
@@ -352,6 +343,7 @@ async function join(){
   A.studentJoinBox.classList.add("hide");
   A.studentQuizBox.classList.remove("hide");
   A.stuName.textContent = ` · ${name}`;
+  // 명시적으로 “제출 버튼” 안내
   alert("참가 완료! 제출 버튼을 눌러주세요.");
 }
 async function submitMCQ(){
@@ -418,12 +410,8 @@ async function exportCSV(){
  ***********************/
 A.btnConnect?.addEventListener("click", connect);
 A.btnLogout?.addEventListener("click", logout);
+[A.tabBuild,A.tabOptions,A.tabPresent,A.tabResults].forEach(b=>b?.addEventListener("click", ()=>activateTab(b)));
 
-[A.tabBuild,A.tabOptions,A.tabPresent,A.tabResults].forEach(b=>{
-  b?.addEventListener("click", ()=>activateTab(b));
-});
-
-// build
 A.btnBuildForm?.addEventListener("click", ()=>{
   const n=Math.max(1,Math.min(20, parseInt(A.questionCount.value,10)||3));
   A.builder.innerHTML=""; for(let i=0;i<n;i++) A.builder.appendChild(qCard(i+1));
@@ -444,7 +432,6 @@ A.btnSaveQuiz?.addEventListener("click", async ()=>{
   alert("저장 완료");
 });
 
-// options
 A.btnSaveOptions?.addEventListener("click", saveOptions);
 A.chkAccept?.addEventListener("change", ()=> roomId && updateDoc(roomRef(roomId),{accept:!!A.chkAccept.checked}));
 A.chkReveal?.addEventListener("change", ()=> roomId && updateDoc(roomRef(roomId),{reveal:!!A.chkReveal.checked}));
@@ -457,13 +444,11 @@ A.btnCopyLink?.addEventListener("click", async ()=>{
 });
 A.btnOpenStudent?.addEventListener("click", ()=> window.open(A.studentLink?.value||"#","_blank"));
 
-// present
 A.btnStart?.addEventListener("click", startQuiz);
 A.btnPrev?.addEventListener("click", ()=>step(-1));
 A.btnNext?.addEventListener("click", ()=>step(+1));
 A.btnEndAll?.addEventListener("click", finishAll);
 
-// results
 A.btnExportCSV?.addEventListener("click", exportCSV);
 A.btnResetAll?.addEventListener("click", async ()=>{
   if(!roomId) return; if(!confirm("모든 응답을 초기화할까요?")) return;
@@ -473,7 +458,6 @@ A.btnResetAll?.addEventListener("click", async ()=>{
   await Promise.all(jobs); alert("초기화 완료");
 });
 
-// student
 A.btnJoin?.addEventListener("click", join);
 A.btnSubmitMCQ?.addEventListener("click", submitMCQ);
 A.btnShortSend?.addEventListener("click", submitShort);
@@ -487,15 +471,16 @@ const U_ROOM = url.searchParams.get("room")||"";
 
 (function boot(){
   if(S_MODE){
-    // 학생 모드: 상단/관리자 숨김
-    A.adminTopbar?.classList.add("hide");
-    A.adminRoot?.classList.add("hide");
-    A.studentRoot?.classList.remove("hide");
+    // 학생 모드: 관리자 UI 숨김
+    $("#adminTopbar")?.classList.add("hide");
+    $("#adminRoot")?.classList.add("hide");
+    $("#studentRoot")?.classList.remove("hide");
 
-    // 세션 설정 + 자동 접속
-    if(U_ROOM){ roomId=U_ROOM; A.stuSession.textContent=`세션 ${roomId}`; connect(); }
+    if(U_ROOM){ roomId=U_ROOM; connect(); } // 접속 → 스냅샷 구독 → 관리자 시작 시 즉시 문항 표시
+    // 첫 화면 안내 강화 (placeholder도 이미 변경)
+    $("#studentName")?.setAttribute("placeholder","이름 혹은 번호를 입력하세요!");
   }else{
-    // 관리자 기본: 세션 아웃 상태
+    // 관리자: 세션 아웃 상태로 시작
     setOnline(false);
     activateTab(A.tabBuild);
   }
