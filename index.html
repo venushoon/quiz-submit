@@ -4,30 +4,24 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>실시간 퀴즈</title>
-  <!-- 404 방지용 파비콘 -->
-  <link rel="icon" href="data:," />
   <link rel="stylesheet" href="./app.css" />
-  <!-- QRCode (QR 캔버스 그리기용) -->
+  <!-- QRCode (필수: QR 생성) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body>
-
-  <!-- ========== 관리자 루트 ========== -->
+  <!-- ===== 관리자 화면 ===== -->
   <div id="adminRoot">
-
-    <!-- 상단바: 세션 입력 + 접속/세션아웃 토글 + 탭 -->
     <div class="topbar">
       <div class="brand">
-        <span id="liveDot" class="live-dot"></span>
-        <strong>실시간 퀴즈</strong>
+        <span class="live-dot" id="liveDot"></span>
+        <b>실시간 퀴즈</b>
       </div>
-
       <div class="session">
-        <input id="roomId" class="input lg" placeholder="세션(예: class1)" />
-        <button id="btnConnect" class="btn primary lg">접속</button>
+        <input id="roomId" class="input lg" placeholder="세션 코드(예: class1)" />
+        <button id="btnConnect" class="btn primary">접속</button>
+        <button id="btnLogout" class="btn danger">세션아웃</button>
         <span id="roomStatus" class="muted">오프라인</span>
       </div>
-
       <div class="tabs">
         <button id="tabBuild"   class="tab active">문항</button>
         <button id="tabOptions" class="tab">옵션</button>
@@ -37,57 +31,50 @@
     </div>
 
     <main class="wrap">
-
-      <!-- 문항 탭 -->
+      <!-- 문항 빌더 -->
       <section id="panelBuild" class="panel">
-        <div class="card">
+        <div class="card stack">
           <div class="row">
             <input id="quizTitle" class="input lg" placeholder="퀴즈 제목" />
-            <input id="questionCount" class="input xs" type="number" min="1" max="20" value="3" />
+            <input id="questionCount" type="number" class="input xs" value="3" />
             <button id="btnBuildForm" class="btn">빈폼</button>
             <button id="btnLoadSample" class="btn">샘플</button>
             <button id="btnSaveQuiz" class="btn success">저장</button>
           </div>
+          <div class="builder" id="builder"></div>
         </div>
-
-        <div id="builder" class="builder"></div>
       </section>
 
-      <!-- 옵션 탭 -->
+      <!-- 옵션 -->
       <section id="panelOptions" class="panel hide">
         <div class="grid-2">
-          <!-- 좌: 옵션 -->
           <div class="card">
             <h3>제출 정책 & 진행</h3>
 
             <label class="chk"><input type="radio" name="policy" value="device" checked /> 기기당 1회</label>
             <label class="chk"><input type="radio" name="policy" value="realname" /> 실명당 1회</label>
 
-            <div class="subsec">
-              <label class="chk"><input id="chkAccept" type="checkbox" /> 제출 허용</label>
-              <label class="chk"><input id="chkReveal" type="checkbox" /> 결과 공개</label>
-              <label class="chk"><input id="chkBright" type="checkbox" /> 프레젠테이션 밝은 모드</label>
-            </div>
+            <label class="chk mt12"><input id="chkAccept" type="checkbox" /> 제출 허용</label>
+            <label class="chk"><input id="chkReveal" type="checkbox" /> 결과 공개</label>
+            <label class="chk"><input id="chkBright" type="checkbox" /> 프레젠테이션 밝은 모드</label>
 
-            <div class="row align-center">
+            <div class="subsec row">
               <span class="muted">타이머(초)</span>
-              <input id="timerSec" class="input xs" type="number" min="5" max="600" value="30" />
+              <input id="timerSec" class="input xs" value="30" />
               <button id="btnTimerGo" class="btn">타이머 시작</button>
               <button id="btnTimerStop" class="btn">타이머 정지</button>
-              <strong id="leftSec" class="muted">00:00</strong>
+              <span id="leftSec" class="muted">00:00</span>
             </div>
 
-            <div class="row mt12">
-              <button id="btnSaveOptions" class="btn success lg">저장</button>
-            </div>
+            <button id="btnSaveOptions" class="btn success">저장</button>
           </div>
 
-          <!-- 우: 학생용 접속 (옵션 탭에서만 노출) -->
+          <!-- 학생 접속(옵션에서만 노출) -->
           <div class="card">
             <h3>학생용 접속</h3>
-            <canvas id="qrCanvas" class="qr"></canvas>
+            <canvas id="qrCanvas" class="qr" width="220" height="220" aria-label="학생용 QR"></canvas>
             <div class="row">
-              <input id="studentLink" class="input" readonly />
+              <input id="studentLink" class="input lg" placeholder="학생 링크" readonly />
               <button id="btnCopyLink" class="btn">복사</button>
               <button id="btnOpenStudent" class="btn">학생모드 열기</button>
             </div>
@@ -96,57 +83,57 @@
         </div>
       </section>
 
-      <!-- 프레젠테이션 탭 -->
+      <!-- 프레젠테이션 -->
       <section id="panelPresent" class="panel hide">
         <div class="card present-header">
-          <div class="row counters">
-            <span class="dot join"></span>참가 <b id="cJoin">0</b> <span class="sep"></span>
-            <span class="dot submit"></span>제출 <b id="cSubmit">0</b> <span class="sep"></span>
-            <span class="dot ok"></span>정답 <b id="cOk">0</b> <span class="sep"></span>
-            <span class="dot no"></span>오답 <b id="cNo">0</b>
-          </div>
           <div class="row">
             <button id="btnStart" class="btn success">시작</button>
             <button id="btnPrev" class="btn">이전</button>
             <button id="btnNext" class="btn">다음</button>
             <button id="btnEndAll" class="btn danger">종료</button>
+          </div>
+          <div class="row">
+            <div class="counters">
+              <span class="dot join"></span>참가 <b id="cJoin">0</b>
+              <span class="sep"></span>
+              <span class="dot submit"></span>제출 <b id="cSubmit">0</b>
+              <span class="sep"></span>
+              <span class="dot ok"></span>정답 <b id="cOk">0</b>
+              <span class="sep"></span>
+              <span class="dot no"></span>오답 <b id="cNo">0</b>
+            </div>
+            <span class="muted" style="margin-left:14px">남은 시간 <b id="leftSec_present">00:00</b></span>
             <button id="btnFullscreen" class="btn">전체화면</button>
-            <strong id="leftSec_present" class="muted">00:00</strong>
           </div>
         </div>
 
-        <div id="presentStage" class="present-stage">
-          <div><b id="pTitle">-</b></div>
-          <div class="q-big" id="pQ">시작 버튼을 누르면 문항이 제시됩니다.</div>
+        <div id="presentStage" class="present-stage card">
+          <h2 id="pTitle" class="muted">실시간 퀴즈</h2>
+          <div id="pQ" class="q-big">시작 버튼을 누르면 문항이 제시됩니다.</div>
           <div id="pOpts" class="p-options"></div>
         </div>
       </section>
 
-      <!-- 결과 탭 -->
+      <!-- 결과 -->
       <section id="panelResults" class="panel hide">
-        <div class="card">
-          <div class="row between">
-            <h3>결과</h3>
-            <div class="row">
-              <button id="btnLeaderboardOnly" class="btn">리더보드 크게</button>
-              <button id="btnExportCSV" class="btn">CSV 내보내기</button>
-            </div>
-          </div>
-          <div id="resultsTable"></div>
+        <div class="card row between">
+          <button id="btnExportCSV" class="btn">CSV 내보내기</button>
+          <button id="btnLeaderboardOnly" class="btn">리더보드 전용 보기</button>
         </div>
+        <div id="resultsTable" class="card"></div>
       </section>
     </main>
 
     <footer class="foot">© Live Quiz</footer>
-  </div><!-- /#adminRoot -->
+  </div>
 
-  <!-- ========== 학생 루트 ========== -->
+  <!-- ===== 학생 화면 ===== -->
   <div id="studentRoot" class="hide">
     <div class="s-top">
       <div class="s-left">
         <span id="sLiveDot" class="live-dot"></span>
         <span id="sRoomBadge" class="badge">세션 -</span>
-        <span id="sStatus" class="muted">오프라인</span>
+        <span class="muted" id="sStatus">오프라인</span>
       </div>
       <div class="row">
         <input id="sName" class="input" placeholder="이름 또는 번호" />
@@ -156,28 +143,28 @@
 
     <div class="s-stage">
       <h2 id="sQTitle">대기 중…</h2>
-      <p id="sQText" class="muted">QR로 접속했다면 먼저 이름(번호)을 입력하세요.</p>
-      <p id="sHint" class="muted"></p>
+      <p id="sQText" class="muted">QR로 접속한 경우 먼저 이름(번호)을 입력하세요.</p>
 
       <!-- 객관식 -->
       <div id="sMcqBox" class="hide">
         <div id="sMcq" class="s-mcq"></div>
-        <div class="row mt12">
-          <button id="sMcqSubmit" class="btn success" disabled>제출</button>
-        </div>
+        <button id="sMcqSubmit" class="btn success mt12" disabled>제출</button>
       </div>
 
       <!-- 주관식 -->
       <div id="sShort" class="s-short hide">
-        <input id="sShortInput" class="input lg" placeholder="답 입력" />
+        <input id="sShortInput" class="input" placeholder="답을 입력하세요" />
         <button id="sShortSend" class="btn success">제출</button>
       </div>
+
+      <p id="sHint" class="muted mt12"></p>
 
       <!-- 개인 결과 -->
       <div id="sResult" class="card hide"></div>
     </div>
-  </div><!-- /#studentRoot -->
+  </div>
 
+  <!-- 앱 로직 -->
   <script type="module" src="./app.js"></script>
 </body>
 </html>
