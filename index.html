@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>실시간 퀴즈</title>
 
-  <!-- 파비콘: 상대경로 사용 -->
+  <!-- 파비콘(404 방지: 루트에 파일 두세요) -->
   <link rel="icon" href="./favicon.ico" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png">
 
@@ -14,7 +14,7 @@
   <script type="module" defer src="./app.js"></script>
 </head>
 <body>
-  <!-- 학생 전용 화면(메뉴 없음) -->
+  <!-- 학생 전용 화면 -->
   <div id="studentRoot" class="hide">
     <header class="s-top">
       <div class="s-left">
@@ -23,21 +23,31 @@
         <span id="sStatus" class="muted">오프라인</span>
       </div>
       <div class="s-join">
-        <input id="sName" class="input sm" placeholder="이름(또는 번호)" />
+        <input id="sName" class="input sm" placeholder="이름(또는 번호)을 입력하세요" />
         <button id="sBtnJoin" class="btn primary lg">참가</button>
       </div>
     </header>
 
     <main class="s-stage">
       <h2 id="sQTitle" class="muted">대기 중…</h2>
-      <h1 id="sQText" class="q-big">관리자가 시작하면 문항이 표시됩니다.</h1>
+      <h1 id="sQText" class="q-big">QR로 접속한 경우 먼저 이름(번호)을 입력하세요.</h1>
 
-      <div id="sMcq" class="s-mcq hide"></div>
+      <!-- 객관식: 선택 + 제출 버튼 -->
+      <div id="sMcqBox" class="hide">
+        <div id="sMcq" class="s-mcq"></div>
+        <div class="row mt12">
+          <button id="sMcqSubmit" class="btn primary lg" disabled>제출</button>
+        </div>
+      </div>
 
+      <!-- 주관식 -->
       <div id="sShort" class="hide s-short">
         <input id="sShortInput" class="input lg" placeholder="정답을 입력하세요" />
         <button id="sShortSend" class="btn primary lg">제출</button>
       </div>
+
+      <!-- 종료 후 개인결과 -->
+      <section id="sResult" class="card hide"></section>
 
       <p id="sHint" class="muted mt12"></p>
     </main>
@@ -67,8 +77,7 @@
     </header>
 
     <main class="wrap">
-
-      <!-- 문항만들기: 기본 탭 -->
+      <!-- 문항만들기(기본 탭) -->
       <section id="panelBuild" class="panel">
         <div class="row between align-center">
           <input id="quizTitle" class="input lg" placeholder="퀴즈 제목" />
@@ -82,8 +91,8 @@
         <div id="builder" class="builder"></div>
       </section>
 
-      <!-- 옵션: 좌측 옵션 / 우측 학생접속 + 옵션 가이드 -->
-      <section id="panelOptions" class="panel grid-2">
+      <!-- 옵션 -->
+      <section id="panelOptions" class="panel grid-2 hide">
         <div class="card">
           <h3>옵션</h3>
 
@@ -116,14 +125,14 @@
           </div>
         </div>
 
-        <!-- 우측: 학생 접속 + 옵션 설명 가이드 -->
+        <!-- 학생 접속 + 안내 -->
         <div class="stack">
           <div class="card" id="studentConnectCard">
             <h3>학생용 접속</h3>
             <canvas id="qrCanvas" class="qr"></canvas>
             <div class="row gap8">
               <input id="studentLink" class="input" placeholder="학생 접속 링크" readonly />
-              <button id="btnCopyLink"  class="btn">복사</button>
+              <button id="btnCopyLink"    class="btn">복사</button>
               <button id="btnOpenStudent" class="btn">열기</button>
             </div>
           </div>
@@ -131,11 +140,11 @@
           <div class="card">
             <h3>옵션 가이드</h3>
             <ul class="guide-list">
-              <li><b>제출 정책</b>: 기기당 1회(기기 고정) / 실명당 1회(입력한 이름 기준)</li>
-              <li><b>제출 허용</b>: 문제 진행 중에만 제출 가능하도록 제어</li>
-              <li><b>제출 즉시 공개</b>: 제출 직후 결과 반영</li>
-              <li><b>밝은 모드</b>: 프레젠테이션 화면용 밝은 테마</li>
-              <li><b>타이머</b>: 시간 종료 시 자동으로 다음 문제로 이동</li>
+              <li><b>제출 정책</b>: 기기 고정/실명 고정</li>
+              <li><b>제출 허용</b>: 진행 중에만 제출 가능</li>
+              <li><b>즉시 공개</b>: 제출 즉시 결과 반영</li>
+              <li><b>밝은 모드</b>: 발표 화면을 밝게</li>
+              <li><b>타이머</b>: 시간 종료 시 자동 다음</li>
             </ul>
           </div>
         </div>
@@ -151,9 +160,12 @@
             <button id="btnEndAll" class="btn danger">종료</button>
             <button id="btnFullscreen" class="btn ghost">전체화면</button>
           </div>
-          <div class="muted">
-            <span id="presentCounters">참가 0 · 제출 0 · 정답 0 · 오답 0</span>
-            <span class="ml8">남은 시간 <b id="leftSec_present">00:00</b></span>
+          <div class="muted counters">
+            <span class="dot join"></span><span id="cJoin">0</span>
+            <span class="dot submit"></span><span id="cSubmit">0</span>
+            <span class="dot ok"></span><span id="cOk">0</span>
+            <span class="dot no"></span><span id="cNo">0</span>
+            <span class="sep">|</span> 남은 시간 <b id="leftSec_present">00:00</b>
           </div>
         </div>
 
@@ -168,14 +180,13 @@
       <section id="panelResults" class="panel hide">
         <div class="row between align-center">
           <div class="row gap8">
-            <button id="btnExportCSV"      class="btn">CSV 내보내기</button>
+            <button id="btnExportCSV"       class="btn">CSV 내보내기</button>
             <button id="btnLeaderboardOnly" class="btn ghost">리더보드 전용 보기</button>
           </div>
           <div class="muted">프레젠테이션/결과에서는 가이드를 숨겼습니다.</div>
         </div>
         <div id="resultsTable" class="card"></div>
       </section>
-
     </main>
 
     <footer class="foot">
