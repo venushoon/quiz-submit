@@ -1,8 +1,8 @@
-name: Deploy static site
+name: deploy
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main ]   # 기본 브랜치가 main이 아니면 수정
 
 permissions:
   contents: read
@@ -14,16 +14,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      # 루트의 index.html을 그대로 공개합니다.
-      - uses: actions/upload-pages-artifact@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # (선택) 앱이 루트에 있으니 바로 업로드합니다.
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          path: ./
-      - uses: actions/deploy-pages@v4
-        id: deployment
+          path: "."   # ← 루트 그대로 서빙
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
     environment:
-      name: github-pages
+      name: github-pages     # ← "Missing environment" 오류 방지
       url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
