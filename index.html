@@ -10,8 +10,6 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import { getFirestore } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-
-    // 전역에서 쓸 수 있게 window에 심어둠
     const firebaseConfig = {
       apiKey: "AIzaSyCClNc95ykYCudmLHTPgpewZ60bZ8zukbo",
       authDomain: "live-quiz-a14d1.firebaseapp.com",
@@ -21,7 +19,7 @@
     window.db = getFirestore(app);
   </script>
 
-  <!-- QRCode (옵션 탭에서만 사용) -->
+  <!-- QRCode -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 </head>
 
@@ -40,14 +38,14 @@
     </div>
 
     <nav class="tabs admin-only">
-      <button id="tabBuild" class="tab active">① 문항</button>
-      <button id="tabOptions" class="tab">② 옵션</button>
-      <button id="tabPresent" class="tab">③ 프레젠테이션</button>
-      <button id="tabResults" class="tab">④ 결과</button>
+      <button id="tabBuild" class="tab active" data-tab="build">① 문항</button>
+      <button id="tabOptions" class="tab" data-tab="options">② 옵션</button>
+      <button id="tabPresent" class="tab" data-tab="present">③ 프레젠테이션</button>
+      <button id="tabResults" class="tab" data-tab="results">④ 결과</button>
     </nav>
   </header>
 
-  <!-- 관리자 패널: 문항 -->
+  <!-- 문항 -->
   <section id="panelBuild" class="panel">
     <div class="card">
       <div class="row wrap gap">
@@ -57,14 +55,12 @@
         <button id="btnLoadSample" class="btn">샘플</button>
         <button id="btnSaveQuiz" class="btn success">저장</button>
 
-        <!-- ▼ 업로드 / 샘플양식 -->
         <input id="fileUploadTxt" type="file" accept=".txt,.csv" class="hide" />
         <button id="btnUploadTxt" class="btn">업로드</button>
         <button id="btnDownloadTemplate" class="btn ghost">샘플양식</button>
       </div>
     </div>
 
-    <!-- 수동 출제 가이드 -->
     <div id="buildGuide" class="card hint">
       <h4>수동 출제 가이드</h4>
       <ol>
@@ -78,7 +74,7 @@
     <div id="builder" class="builder"></div>
   </section>
 
-  <!-- 관리자 패널: 옵션 -->
+  <!-- 옵션 -->
   <section id="panelOptions" class="panel hide">
     <div class="grid">
       <div class="card">
@@ -102,10 +98,10 @@
         </div>
       </div>
 
-      <!-- 학생 접속 (옵션 탭에서만 노출) -->
-      <div class="card" id="studentAccess">
+      <!-- 학생 접속(옵션 탭에서만 노출) -->
+      <div class="card" id="studentAccess" aria-hidden="true">
         <h3>학생용 접속</h3>
-        <canvas id="qrCanvas" width="160" height="160" class="qr"></canvas>
+        <canvas id="qrCanvas" width="150" height="150" class="qr"></canvas>
         <div class="row wrap gap">
           <input id="studentLink" class="input grow" readonly />
           <button id="btnCopyLink" class="btn">복사</button>
@@ -116,7 +112,7 @@
     </div>
   </section>
 
-  <!-- 관리자 패널: 프레젠테이션 -->
+  <!-- 프레젠테이션 -->
   <section id="panelPresent" class="panel hide">
     <div id="presentWrap" class="present">
       <div class="row wrap gap align-center">
@@ -136,12 +132,10 @@
       </div>
 
       <div class="board" id="board">
-        <div class="wait" id="presentWait">
-          시작 버튼을 누르면 문항이 제시됩니다.
-        </div>
+        <div class="wait" id="presentWait">시작 버튼을 누르면 문항이 제시됩니다.</div>
         <div id="pTitle" class="title">-</div>
         <div id="pQ" class="question">-</div>
-        <div id="pOpts" class="options"></div>
+        <div id="pOpts" class="options grid-4"></div>
       </div>
 
       <div class="row wrap gap stats">
@@ -153,7 +147,7 @@
     </div>
   </section>
 
-  <!-- 관리자 패널: 결과 -->
+  <!-- 결과 -->
   <section id="panelResults" class="panel hide">
     <div class="row wrap gap">
       <button id="btnExportCSV" class="btn">CSV 내보내기</button>
@@ -162,7 +156,7 @@
     <div id="resultsTable" class="table-wrap"></div>
   </section>
 
-  <!-- 학생 모드 화면(링크로 진입 시) -->
+  <!-- 학생 모드 -->
   <section id="studentPanel" class="student hide">
     <div class="row wrap gap align-center">
       <span id="studentTopInfo" class="muted">세션: - · 오프라인</span>
@@ -183,7 +177,7 @@
       <div id="sQText" class="s-question">대기 중입니다…</div>
 
       <!-- 객관식 -->
-      <div id="mcqBox" class="s-options"></div>
+      <div id="mcqBox" class="s-options grid-4"></div>
       <button id="btnSubmitMCQ" class="btn success s-submit hide">제출</button>
 
       <!-- 주관식 -->
@@ -195,7 +189,6 @@
       <div id="studentDone" class="muted hide">제출 완료!</div>
     </div>
 
-    <!-- 개인 결과 -->
     <div id="studentResult" class="card hide">
       <h3>내 결과</h3>
       <div id="studentResultBody"></div>
