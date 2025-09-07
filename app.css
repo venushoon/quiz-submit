@@ -12,8 +12,9 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 .align-center{align-items:center} .right{margin-left:auto} .mt{margin-top:10px}
 .muted{color:var(--muted)} .badge{background:#22304a;border:1px solid var(--line);padding:2px 8px;border-radius:999px;font-size:12px}
 .live-dot{width:10px;height:10px;border-radius:999px;background:#f43;display:inline-block;margin-right:8px;box-shadow:0 0 10px #f43}
+.admin-only.hide{display:none!important}
 
-.topbar{position:sticky;top:0;z-index:10;background:linear-gradient(180deg,#0e1624,#0e1624cc 70%,#0e162400);padding:14px 16px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:auto 1fr auto;gap:14px}
+.topbar{position:sticky;top:0;z-index:10;background:#0e1624;padding:14px 16px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:auto 1fr auto;gap:14px}
 .brand{display:flex;align-items:center;gap:8px}
 .session{display:flex;gap:8px;align-items:center}
 
@@ -36,12 +37,13 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px}
 .card.hint{border:1px dashed var(--accent)}
 .grid{display:grid;grid-template-columns:2fr 1.2fr;gap:12px}
-.qr{display:block;border:1px dashed var(--accent);padding:6px;border-radius:12px;margin-bottom:8px;width:150px;height:150px}
+.qr{display:block;border:1px dashed var(--accent);padding:6px;border-radius:12px;margin-bottom:8px;width:140px;height:140px}
 
 .builder{display:grid;gap:10px}
 .qcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px}
 .qcard .qtext{width:100%;font-size:16px;margin:8px 0}
 .qcard .opt{width:240px}
+.qthumb{width:84px;height:60px;object-fit:cover;border:1px solid var(--line);border-radius:8px}
 
 .present .board{background:#0f172a;border:1px solid var(--line);border-radius:18px;padding:20px;min-height:260px;display:flex;flex-direction:column;gap:8px}
 .present .title{font-size:18px;opacity:.7}
@@ -49,9 +51,10 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 .present .options{display:grid;gap:12px}
 .present .popt{background:#141f33;border:1px solid var(--line);padding:12px;border-radius:14px}
 .present .wait{opacity:.8;padding:10px 12px;border:1px dashed var(--accent);border-radius:12px}
+.qimg{max-width:100%;height:auto;border-radius:12px;border:1px solid var(--line);}
 
-.grid-4{grid-template-columns:repeat(4, minmax(140px,1fr))}
-@media (max-width:920px){ .grid-4{grid-template-columns:repeat(2, minmax(140px,1fr))} }
+.grid-4{grid-template-columns:repeat(4,minmax(140px,1fr))}
+@media (max-width:920px){ .grid-4{grid-template-columns:repeat(2,minmax(140px,1fr))} }
 
 .counter{display:flex;gap:10px;align-items:center;margin-left:8px}
 .dot{display:inline-block;width:10px;height:10px;border-radius:999px}
@@ -59,9 +62,6 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 .timer{font-weight:700;letter-spacing:.5px}
 
 .stats{gap:14px;margin-top:12px}
-.chip{background:var(--chip);padding:6px 10px;border-radius:999px;border:1px solid var(--line)}
-.chip.ok{border-color:var(--green)} .chip.no{border-color:var(--red)} .chip.wait{border-color:var(--line)}
-
 .table-wrap table{width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .table-wrap th,.table-wrap td{border-bottom:1px solid var(--line);padding:10px;text-align:center}
 .table-wrap th{background:#132038}
@@ -69,6 +69,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 .student .s-question{font-size:28px;font-weight:700;margin:8px 0}
 .s-options{display:grid;gap:10px}
 .s-options .optbtn{background:#132038;border:1px solid var(--line);border-radius:16px;padding:16px;font-size:20px;cursor:pointer}
+.s-options .optbtn.active{box-shadow:inset 0 0 0 2px var(--primary)}
 .s-submit{margin-top:8px}
 
 .foot{max-width:1100px;margin:20px auto 40px;padding:0 16px;color:var(--muted);text-align:center}
