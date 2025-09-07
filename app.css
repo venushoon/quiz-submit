@@ -28,6 +28,8 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 .btn.success{background:var(--success);color:#05170b;border-color:#0f7a35}
 .btn.danger{background:var(--danger);color:#fff;border-color:#ab2c2c}
 .btn.ghost{background:transparent;border-color:var(--line)}
+.btn.image{background:#243154;border-color:#4b5d84;font-weight:700}
+.btn.image::before{content:"📷";margin-right:6px}
 
 .tabs{display:flex;gap:8px}
 .tab{background:#18233a;border:1px solid var(--line);color:var(--text);padding:8px 12px;border-radius:10px;cursor:pointer}
@@ -37,13 +39,13 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px}
 .card.hint{border:1px dashed var(--accent)}
 .grid{display:grid;grid-template-columns:2fr 1.2fr;gap:12px}
-.qr{display:block;border:1px dashed var(--accent);padding:6px;border-radius:12px;margin-bottom:8px;width:140px;height:140px}
+.qr{display:block;border:1px dashed var(--accent);padding:6px;border-radius:12px;margin-bottom:8px;width:128px;height:128px}
 
 .builder{display:grid;gap:10px}
 .qcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px}
 .qcard .qtext{width:100%;font-size:16px;margin:8px 0}
 .qcard .opt{width:240px}
-.qthumb{width:84px;height:60px;object-fit:cover;border:1px solid var(--line);border-radius:8px}
+.qthumb{width:100px;height:72px;object-fit:cover;border:2px solid var(--line);border-radius:8px}
 
 .present .board{background:#0f172a;border:1px solid var(--line);border-radius:18px;padding:20px;min-height:260px;display:flex;flex-direction:column;gap:8px}
 .present .title{font-size:18px;opacity:.7}
@@ -66,6 +68,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 .table-wrap th,.table-wrap td{border-bottom:1px solid var(--line);padding:10px;text-align:center}
 .table-wrap th{background:#132038}
 
+.student{ /* 기본적으로 숨김(초기 랜딩에서 노출 방지) */ }
 .student .s-question{font-size:28px;font-weight:700;margin:8px 0}
 .s-options{display:grid;gap:10px}
 .s-options .optbtn{background:#132038;border:1px solid var(--line);border-radius:16px;padding:16px;font-size:20px;cursor:pointer}
