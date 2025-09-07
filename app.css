@@ -52,7 +52,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 .present .question{font-size:32px;font-weight:700;margin:10px 0}
 .present .options{display:grid;gap:12px}
 .present .popt{background:#141f33;border:1px solid var(--line);padding:12px;border-radius:14px}
-.present .wait{opacity:.8;padding:10px 12px;border:1px dashed var(--accent);border-radius:12px}
+.present .wait{opacity:.85;padding:10px 12px;border:1px dashed var(--accent);border-radius:12px}
 .qimg{max-width:100%;height:auto;border-radius:12px;border:1px solid var(--line);}
 
 .grid-4{grid-template-columns:repeat(4,minmax(140px,1fr))}
@@ -68,7 +68,6 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 .table-wrap th,.table-wrap td{border-bottom:1px solid var(--line);padding:10px;text-align:center}
 .table-wrap th{background:#132038}
 
-.student{ /* 기본적으로 숨김(초기 랜딩에서 노출 방지) */ }
 .student .s-question{font-size:28px;font-weight:700;margin:8px 0}
 .s-options{display:grid;gap:10px}
 .s-options .optbtn{background:#132038;border:1px solid var(--line);border-radius:16px;padding:16px;font-size:20px;cursor:pointer}
