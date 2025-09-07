@@ -6,7 +6,7 @@
   <title>실시간 퀴즈</title>
   <link rel="icon" href="data:," />
   <link rel="stylesheet" href="./app.css" />
-  <!-- QRCode (필수) -->
+  <!-- QRCode -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 </head>
 <body>
@@ -25,10 +25,10 @@
     </div>
 
     <nav class="tabs" id="adminTabs">
-      <button id="tabBuild" class="tab">문항</button>
-      <button id="tabOptions" class="tab">옵션</button>
-      <button id="tabPresent" class="tab">프레젠테이션</button>
-      <button id="tabResults" class="tab">결과</button>
+      <button id="tabBuild"   class="tab">① 문항</button>
+      <button id="tabOptions" class="tab">② 옵션</button>
+      <button id="tabPresent" class="tab">③ 프레젠테이션</button>
+      <button id="tabResults" class="tab">④ 결과</button>
     </nav>
   </header>
 
@@ -36,21 +36,27 @@
   <main id="adminRoot">
     <!-- 문항 -->
     <section id="panelBuild" class="panel">
-      <div class="row wrap g8">
-        <input id="quizTitle" class="input grow" placeholder="퀴즈 제목" />
+      <div class="row wrap g8 center-row">
+        <input id="quizTitle" class="input grow center-input" placeholder="퀴즈 제목" />
         <input id="questionCount" class="input xs" type="number" min="1" max="20" value="3" />
         <button id="btnBuildForm" class="btn ghost">빈폼</button>
         <button id="btnLoadSample" class="btn ghost">샘플</button>
         <button id="btnSaveQuiz" class="btn success">저장</button>
+
+        <!-- 업로드 / 샘플 양식 -->
+        <input id="fileQuestions" class="hide" type="file" accept=".txt,.csv" />
+        <button id="btnUploadQuestions" class="btn ghost subtle">업로드</button>
+        <button id="btnDownloadTemplate" class="btn ghost subtle">샘플 양식</button>
       </div>
-      <div id="builder" class="builder"></div>
+      <div id="builder" class="builder center-cards"></div>
     </section>
 
-    <!-- 옵션: 학생 접속(링크/QR)은 여기에서만 노출 -->
+    <!-- 옵션 -->
     <section id="panelOptions" class="panel hide">
       <div class="grid">
         <div class="card">
           <h3>제출 정책 & 진행</h3>
+
           <label class="radio">
             <input type="radio" name="policy" id="policyDevice" checked />
             <span>기기당 1회</span>
@@ -64,26 +70,21 @@
             <input type="checkbox" id="chkAccept" />
             <span>제출 허용</span>
           </label>
-
           <label class="check">
             <input type="checkbox" id="chkReveal" />
             <span>결과 공개</span>
           </label>
-
           <label class="check">
             <input type="checkbox" id="chkBright" />
             <span>프레젠테이션 밝은 모드</span>
           </label>
 
-          <div class="row g8">
+          <div class="row g8 mt8 center-row">
             <label class="hint">타이머(초)</label>
-            <input id="timerSec" class="input xs" type="number" min="5" max="600" value="30" />
-            <button id="btnTimerGo" class="btn ghost">타이머 시작</button>
-            <button id="btnTimerStop" class="btn ghost">타이머 정지</button>
-            <span id="leftSec" class="mono">00:00</span>
+            <input id="timerSec" class="input xs center-input" type="number" min="5" max="600" value="30" />
           </div>
 
-          <div class="row g8 mt8">
+          <div class="row g8 mt12 center-row">
             <button id="btnSaveOptions" class="btn success">저장</button>
           </div>
         </div>
@@ -94,16 +95,16 @@
           <div class="row g8 mt8">
             <input id="studentLink" class="input grow" readonly />
             <button id="btnCopyLink" class="btn ghost">복사</button>
-            <button id="btnOpenStudent" class="btn ghost">학생모드 열기</button>
+            <button id="btnOpenStudent" class="btn ghost">열기</button>
           </div>
-          <p class="hint mt8">※ 옵션 저장 후 QR/링크가 갱신됩니다.</p>
+          <p class="hint mt8">※ 옵션 저장 후 QR/링크가 세션 기준으로 즉시 갱신됩니다.</p>
         </div>
       </div>
     </section>
 
     <!-- 프레젠테이션 -->
     <section id="panelPresent" class="panel hide">
-      <div class="row between">
+      <div class="row between wrap g8">
         <div class="row g8">
           <button id="btnStart" class="btn primary">시작</button>
           <button id="btnPrev" class="btn ghost">이전</button>
@@ -120,7 +121,6 @@
 
       <div class="present">
         <h2 id="pTitle" class="center">-</h2>
-        <!-- 시작 전 안내문구가 반드시 보이도록 -->
         <h1 id="pQ" class="center muted">시작 버튼을 누르면 문항이 보입니다.</h1>
         <div id="pOpts" class="poptions"></div>
       </div>
@@ -128,7 +128,7 @@
 
     <!-- 결과 -->
     <section id="panelResults" class="panel hide">
-      <div class="row g8">
+      <div class="row g8 center-row">
         <button id="btnExportCSV" class="btn ghost">CSV 내보내기</button>
         <button id="btnResetAll" class="btn danger">전체 초기화</button>
       </div>
@@ -146,15 +146,14 @@
       </div>
     </div>
 
-    <!-- 문구 변경: 이름 안내를 명확히 -->
     <div id="studentJoinBox" class="joinbox">
-      <input id="studentName" class="input" placeholder="이름 혹은 번호를 입력하세요!" />
+      <input id="studentName" class="input center-input" placeholder="이름 혹은 번호를 입력하세요!" />
       <button id="btnJoin" class="btn primary">참가</button>
     </div>
 
     <div id="studentQuizBox" class="squiz hide">
       <div class="badge" id="badgeType">대기</div>
-      <h2 id="sQText">대기 중입니다…</h2>
+      <h2 id="sQText" class="center">대기 중입니다…</h2>
 
       <div id="mcqBox" class="mcq"></div>
 
@@ -163,7 +162,7 @@
         <button id="btnShortSend" class="btn primary">제출</button>
       </div>
 
-      <div class="row mt12">
+      <div class="row mt12 center-row">
         <button id="btnSubmitMCQ" class="btn success hide">제출</button>
       </div>
     </div>
