@@ -8,13 +8,9 @@
   <link rel="stylesheet" href="./app.css" />
   <!-- QRCode (필수) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
-  <!-- Firebase v9 (모듈) -->
-  <script type="module">
-    // 전역에서 재로딩 방지용: 모듈 프리패치만
-  </script>
 </head>
 <body>
-  <!-- 최상단 바 -->
+  <!-- 관리자 상단 -->
   <header class="topbar" id="adminTopbar">
     <div class="brand">
       <span class="live-dot" id="liveDot"></span>
@@ -36,7 +32,7 @@
     </nav>
   </header>
 
-  <!-- 관리자 패널들 -->
+  <!-- 관리자 패널 -->
   <main id="adminRoot">
     <!-- 문항 -->
     <section id="panelBuild" class="panel">
@@ -50,7 +46,7 @@
       <div id="builder" class="builder"></div>
     </section>
 
-    <!-- 옵션 -->
+    <!-- 옵션: 학생 접속(링크/QR)은 여기에서만 노출 -->
     <section id="panelOptions" class="panel hide">
       <div class="grid">
         <div class="card">
@@ -124,6 +120,7 @@
 
       <div class="present">
         <h2 id="pTitle" class="center">-</h2>
+        <!-- 시작 전 안내문구가 반드시 보이도록 -->
         <h1 id="pQ" class="center muted">시작 버튼을 누르면 문항이 보입니다.</h1>
         <div id="pOpts" class="poptions"></div>
       </div>
@@ -149,8 +146,9 @@
       </div>
     </div>
 
+    <!-- 문구 변경: 이름 안내를 명확히 -->
     <div id="studentJoinBox" class="joinbox">
-      <input id="studentName" class="input" placeholder="이름 또는 번호" />
+      <input id="studentName" class="input" placeholder="이름 혹은 번호를 입력하세요!" />
       <button id="btnJoin" class="btn primary">참가</button>
     </div>
 
@@ -178,7 +176,6 @@
 
   <footer class="footer">© Live Quiz</footer>
 
-  <!-- 앱 본체 -->
   <script type="module" src="./app.js"></script>
 </body>
 </html>
