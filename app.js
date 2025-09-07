@@ -121,8 +121,9 @@ async function connect(){
   setOnline(true);
   buildStudentLink(true);
   activateTab(A.tabBuild);
-  // 세션 입력 잠금
-  A.roomId.readOnly = true; A.btnConnect.disabled = true;
+  // 세션 잠금(접속 후 비활성화)
+  if (A.roomId)      A.roomId.disabled = true;
+  if (A.btnConnect)  A.btnConnect.disabled = true;
   saveLocal();
 }
 function setOnline(on){
@@ -133,8 +134,9 @@ function setOnline(on){
 function logout(){
   roomId=""; setOnline(false);
   if(unsubRoom) unsubRoom(); if(unsubResp) unsubResp();
-  // 세션 입력 해제
-  A.roomId.readOnly = false; A.btnConnect.disabled = false;
+  // 세션아웃 시 입력/버튼 해제
+  if (A.roomId)     { A.roomId.disabled = false; A.roomId.value=""; }
+  if (A.btnConnect) { A.btnConnect.disabled = false; }
   saveLocal(); location.search=""; location.reload();
 }
 
@@ -245,7 +247,7 @@ function studentInitUI(){
   S.sStatus.textContent    = roomId ? "온라인":"오프라인";
   S.sLiveDot?.classList.toggle("on", !!roomId);
   S.sQTitle.textContent="대기 중…";
-  S.sQText.textContent ="QR로 접속한 경우 먼저 이름(번호)을 입력하세요.";
+  S.sQText.textContent ="교사가 시작하면 1번 문항이 표시됩니다.";
   S.sMcq.innerHTML=""; S.sMcqBox.classList.add("hide");
   S.sShort.classList.add("hide"); S.sResult.classList.add("hide"); S.sHint.textContent="";
 }
@@ -256,7 +258,7 @@ async function sJoin(){
   localStorage.setItem(`did.${roomId}`, me.id);
   await setDoc(doc(respCol(roomId), me.id), { name, joinedAt:serverTimestamp(), answers:{} }, { merge:true });
   saveLocal();
-  S.sHint.textContent="참가 완료! 시작되면 제출버튼을 눌러주세요.";
+  S.sHint.textContent="참가 완료! 제출 버튼을 눌러주세요.";
 }
 async function sSubmitMCQ(){
   if(sSelectedIdx==null) return alert("보기를 선택하세요.");
@@ -287,11 +289,20 @@ async function sSubmit(value){
 function renderRoom(){
   if(!roomCache) return;
   const r=roomCache; if(A.pTitle) A.pTitle.textContent=r.title||roomId;
-  const idx=r.currentIndex, q=(idx>=0 && r.questions?.[idx])? r.questions[idx]:null;
 
-  // 프레젠테이션 안내
-  if(A.pQ) A.pQ.textContent = q ? q.text : "시작 버튼을 누르면 문항이 제시됩니다.";
-  if(A.pOpts){ A.pOpts.innerHTML=""; if(q?.type==='mcq'){ q.options.forEach((t,i)=>{ const d=document.createElement("div"); d.className="popt"; d.textContent=`${i+1}. ${t}`; A.pOpts.appendChild(d); }); } }
+  // 프레젠테이션 안내문
+  if (A.pQ) {
+    const idx=r.currentIndex, q=(idx>=0 && r.questions?.[idx])? r.questions[idx]:null;
+    if (!q || r.mode!=='active') {
+      A.pQ.textContent = "시작 버튼을 누르면 문항이 제시됩니다.";
+      A.pOpts.innerHTML = "";
+    } else {
+      A.pQ.textContent = q.text;
+      A.pOpts.innerHTML="";
+      if(q.type==='mcq'){ q.options.forEach((t,i)=>{ const d=document.createElement("div"); d.className="popt"; d.textContent=`${i+1}. ${t}`; A.pOpts.appendChild(d); }); }
+    }
+  }
+
   if(A.chkAccept) A.chkAccept.checked=!!r.accept;
   if(A.chkReveal) A.chkReveal.checked=!!r.reveal;
   if(A.roomStatus) A.roomStatus.textContent = roomId ? `세션: ${roomId} · 온라인` : "오프라인";
@@ -363,13 +374,11 @@ function renderStudent(){
   S.sResult.classList.add("hide");
   S.sQTitle.textContent = r.title || roomId;
   if(!q || r.mode!=='active'){
-    S.sQText.textContent="대기 중입니다… (시작되면 ‘제출’ 버튼을 눌러주세요)";
+    S.sQText.textContent="대기 중입니다…";
     S.sMcqBox.classList.add("hide"); S.sShort.classList.add("hide");
     return;
   }
-  S.sQText.textContent=q.text;
-  // 안내 문구
-  S.sHint.textContent = "제출버튼을 눌러주세요";
+  S.sQText.textContent=q.text; S.sHint.textContent="제출 버튼을 눌러주세요.";
   sSelectedIdx=null; S.sMcqSubmit.disabled=true;
 
   if(q.type==='mcq'){
@@ -513,6 +522,6 @@ S.sShortSend?.addEventListener("click", ()=> sSubmit((S.sShortInput?.value||"").
   }
 
   loadLocal();
-  activateTab(A.tabBuild);   // 접속 시 기본 탭(요청에 따라 문항 탭을 기본으로)
+  activateTab(A.tabBuild);   // 접속 시 기본 탭
   if(roomId){ connect(); }
 })();
