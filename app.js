@@ -36,7 +36,7 @@ const els={
 const roomRef=id=>doc(db,'rooms',id);
 const respCol=id=>collection(db,'rooms',id,'responses');
 
-/* ===== 기본 보존 동작: 방 보장/구독 ===== */
+/* ---------- 방 보장/구독 ---------- */
 async function ensureRoom(id){
   const snap=await getDoc(roomRef(id));
   if(!snap.exists()){
@@ -60,31 +60,28 @@ function listenResponses(id){
   });
 }
 
-/* ===== 모드/탭 (관리자 헤더 유지, 학생 패널 기본 숨김) ===== */
+/* ---------- 모드/탭 ---------- */
 function setMode(m){
   MODE=m;
-  const isAdmin = (m==='admin');
-  // 관리자 헤더/탭: 관리자일 때만 표시
+  const isAdmin=(m==='admin');
   $$('.admin-only').forEach(x=>x.classList.toggle('hide', !isAdmin));
-  // 패널/학생 패널 토글
   [els.panelBuild,els.panelOptions,els.panelPresent,els.panelResults].forEach(x=>x?.classList.toggle('hide', !isAdmin));
-  els.studentPanel?.classList.toggle('hide', isAdmin); // 기본적으로 admin이면 학생 패널 숨김
+  els.studentPanel?.classList.toggle('hide', isAdmin);
   els.studentTopInfo&&(els.studentTopInfo.textContent = roomId?`세션: ${roomId} · 온라인`:'세션: - · 오프라인');
   els.liveDot&&(els.liveDot.style.background = roomId?'#ef4444':'#555');
-  // 학생 접속 박스는 옵션 탭에서만
-  els.studentAccess?.classList.add('hide');
+  els.studentAccess?.classList.add('hide'); // 옵션 탭에서만 표시
 }
 function setActiveTab(btn){
   [els.tabBuild,els.tabOptions,els.tabPresent,els.tabResults].forEach(b=>b?.classList.remove('active'));
   btn?.classList.add('active');
-  els.panelBuild?.classList.toggle('hide', btn!==els.tabBuild);
+  els.panelBuild  ?.classList.toggle('hide', btn!==els.tabBuild);
   els.panelOptions?.classList.toggle('hide', btn!==els.tabOptions);
   els.panelPresent?.classList.toggle('hide', btn!==els.tabPresent);
   els.panelResults?.classList.toggle('hide', btn!==els.tabResults);
   els.studentAccess?.classList.toggle('hide', btn!==els.tabOptions);
 }
 
-/* ===== 접속/로그아웃 ===== */
+/* ---------- 접속/로그아웃 ---------- */
 async function connect(){
   const id=(els.roomId?.value||'').trim(); if(!id) return alert('세션 코드를 입력하세요.');
   roomId=id; await ensureRoom(roomId); listenRoom(roomId); listenResponses(roomId);
@@ -100,20 +97,18 @@ function signOut(){
   saveLocal();
 }
 function saveLocal(){ localStorage.setItem('quiz.live', JSON.stringify({roomId,MODE,me})); }
-function loadLocal(){ try{ const d=JSON.parse(localStorage.getItem('quiz.live')||'{}'); roomId=d.roomId||''; MODE=d.MODE||'admin'; me=d.me||{id:null,name:''}; if(roomId&&els.roomId) els.roomId.value=roomId; }catch{} }
+function loadLocal(){ try{ const d=JSON.parse(localStorage.getItem('quiz.live')||'{}'); roomId=d.roomId||''; me=d.me||{id:null,name:''}; if(roomId&&els.roomId) els.roomId.value=roomId; }catch{} }
 
-/* ===== 문항 카드(이미지 버튼 강조) ===== */
+/* ---------- 문항 카드 + 이미지 ---------- */
 function cardRow(no,q){
   const wrap=document.createElement('div');
-  wrap.className='qcard';
-  wrap.dataset.image = q?.image || '';
+  wrap.className='qcard'; wrap.dataset.image=q?.image||'';
   wrap.innerHTML=`
     <div class="row wrap gap">
       <span class="badge">${no}번 문항</span>
       <label class="radio"><input type="radio" name="type-${no}" value="mcq" ${q?.type==='short'?'':'checked'} /> 객관식</label>
       <label class="radio"><input type="radio" name="type-${no}" value="short" ${q?.type==='short'?'checked':''} /> 주관식</label>
 
-      <!-- 이미지 업로드: 버튼 강조 -->
       <input type="file" accept="image/*" class="hide" id="img-${no}" />
       <button class="btn image" data-act="img" data-no="${no}">이미지</button>
       <img class="qthumb ${q?.image?'':'hide'}" id="thumb-${no}" src="${q?.image||''}" alt="thumb" />
@@ -122,10 +117,10 @@ function cardRow(no,q){
     <div class="mcq ${q?.type==='short'?'hide':''}">
       <div class="row wrap gap">
         ${(q?.options||['','','','']).map((v,i)=>`
-           <div class="row">
-             <label class="badge">보기${i+1}</label>
-             <input class="opt input" data-no="${no}" data-idx="${i}" placeholder="보기${i+1}" value="${v||''}" />
-           </div>`).join('')}
+        <div class="row">
+          <label class="badge">보기${i+1}</label>
+          <input class="opt input" data-no="${no}" data-idx="${i}" placeholder="보기${i+1}" value="${v||''}" />
+        </div>`).join('')}
       </div>
       <div class="row wrap gap">
         <label class="badge">정답 번호</label>
@@ -139,30 +134,20 @@ function cardRow(no,q){
       </div>
     </div>
   `;
-
-  // 타입 토글
   const radios=$$(`input[name="type-${no}"]`,wrap);
   const mcq=$('.mcq',wrap), short=$('.short',wrap);
   radios.forEach(r=>r.addEventListener('change',()=>{
     const isShort=radios.find(x=>x.checked)?.value==='short';
     mcq.classList.toggle('hide',isShort); short.classList.toggle('hide',!isShort);
   }));
-
-  // 이미지 업로드
-  const btnImg = $('[data-act="img"]',wrap);
-  const input  = $(`#img-${no}`,wrap);
-  const thumb  = $(`#thumb-${no}`,wrap);
-  btnImg.addEventListener('click', ()=> input.click());
-  input.addEventListener('change', async (e)=>{
+  const btnImg=$('[data-act="img"]',wrap), input=$(`#img-${no}`,wrap), thumb=$(`#thumb-${no}`,wrap);
+  btnImg.addEventListener('click',()=>input.click());
+  input.addEventListener('change',e=>{
     const f=e.target.files?.[0]; if(!f) return;
     const reader=new FileReader();
-    reader.onload=()=>{
-      wrap.dataset.image = reader.result; // dataURL
-      thumb.src = reader.result; thumb.classList.remove('hide');
-    };
+    reader.onload=()=>{ wrap.dataset.image=reader.result; thumb.src=reader.result; thumb.classList.remove('hide'); };
     reader.readAsDataURL(f);
   });
-
   return wrap;
 }
 function collectBuilder(){
@@ -175,14 +160,14 @@ function collectBuilder(){
       const opts=$$('.opt',c).map(i=>i.value.trim()).filter(Boolean);
       const ans=Math.max(0,Math.min(opts.length-1,(parseInt(c.querySelector('.ansIndex').value,10)||1)-1));
       return {type:'mcq',text,image,options:opts,answerIndex:ans};
-    } else {
+    }else{
       return {type:'short',text,image,answerText:c.querySelector('.ansText').value.trim()};
     }
   }).filter(Boolean);
   return {title:els.quizTitle.value||'퀴즈',questions:list};
 }
 
-/* ===== 파일 업로드/양식 ===== */
+/* ---------- 업로드/양식 ---------- */
 els.btnUploadTxt?.addEventListener('click',()=>els.fileUploadTxt?.click());
 els.fileUploadTxt?.addEventListener('change',async e=>{
   const f=e.target.files?.[0]; if(!f) return;
@@ -211,7 +196,7 @@ els.btnDownloadTemplate?.addEventListener('click',()=>{
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='quiz-template.csv'; a.click(); URL.revokeObjectURL(a.href);
 });
 
-/* ===== 진행/타이머 ===== */
+/* ---------- 진행/타이머 ---------- */
 async function startQuiz(){ await updateDoc(roomRef(roomId),{mode:'active',currentIndex:0,accept:true}); }
 async function step(delta){
   await runTransaction(db,async tx=>{
@@ -234,7 +219,7 @@ function startTimer(sec){
 }
 function stopTimer(){ if(timerHandle){clearInterval(timerHandle); timerHandle=null; els.leftSec&&(els.leftSec.textContent='00:00'); els.studentTimer&&(els.studentTimer.textContent=''); } }
 
-/* ===== 제출/채점 ===== */
+/* ---------- 제출/채점 ---------- */
 async function join(){
   if(!roomId) return alert('세션에 먼저 접속하세요.');
   const name=(els.studentName?.value||'').trim(); if(!name) return alert('이름 또는 번호를 입력하세요!');
@@ -257,15 +242,15 @@ async function submit(value){
 }
 async function grade(uid,idx,ok){ await setDoc(doc(respCol(roomId),uid),{[`answers.${idx}.correct`]:!!ok,[`answers.${idx}.revealed`]:true},{merge:true}); }
 
-/* ===== 렌더 ===== */
+/* ---------- 렌더 ---------- */
 function renderRoom(r){
-  // 옵션 탭에서만 학생접속 표시
+  // 옵션 탭에서만 학생접속 박스
   els.studentAccess?.classList.toggle('hide', !els.tabOptions?.classList.contains('active'));
-
   document.body.classList.toggle('bright', !!r.bright);
 
   const total=r.questions?.length||0, idx=r.currentIndex;
-  els.presentWait?.classList.toggle('hide', !(r.mode!=='active'||idx<0));
+  els.presentWait?.classList.toggle('hide', !(r.mode!=='active'||idx<0)); // 대기문구 표시
+
   els.pTitle&&(els.pTitle.textContent=r.title||roomId);
 
   if(idx>=0 && r.questions[idx]){
@@ -279,12 +264,17 @@ function renderRoom(r){
     els.pQ.textContent='-'; els.pOpts.innerHTML=''; els.pImg.classList.add('hide');
   }
 
-  // 학생 화면(기본은 숨김이지만 role=student로 열린 경우만 표시)
+  // 학생 화면
   if(MODE==='student'){
     els.studentTopInfo&&(els.studentTopInfo.textContent=roomId?`세션: ${roomId} · 온라인`:`세션: - · 오프라인`);
     const q=r.questions?.[idx];
-    if(r.mode!=='active'||!q){ els.badgeType&&(els.badgeType.textContent='대기'); els.sQText&&(els.sQText.textContent='대기 중입니다…'); els.mcqBox&&(els.mcqBox.innerHTML=''); els.shortBox?.classList.add('hide'); els.btnSubmitMCQ?.classList.add('hide'); els.sImg?.classList.add('hide'); return; }
-
+    if(r.mode!=='active'||!q){
+      els.badgeType&&(els.badgeType.textContent='대기');
+      els.sQText&&(els.sQText.textContent='대기 중입니다…');
+      els.mcqBox&&(els.mcqBox.innerHTML=''); els.shortBox?.classList.add('hide');
+      els.btnSubmitMCQ?.classList.add('hide'); els.sImg?.classList.add('hide');
+      return;
+    }
     els.badgeType&&(els.badgeType.textContent=q.type==='mcq'?'객관식':'주관식');
     els.sQText&&(els.sQText.textContent=q.text);
     if(q.image){ els.sImg.src=q.image; els.sImg.classList.remove('hide'); } else { els.sImg.classList.add('hide'); }
@@ -334,7 +324,7 @@ function renderResponses(list){
   }
 }
 
-/* ===== 링크/QR (옵션 저장 시 갱신) ===== */
+/* ---------- 링크/QR ---------- */
 function buildStudentLink(){
   if(!els.studentLink) return; if(!roomId){ els.studentLink.value=''; return; }
   const url=new URL(location.href); url.searchParams.set('role','student'); url.searchParams.set('room',roomId);
@@ -342,7 +332,7 @@ function buildStudentLink(){
   if(window.QRCode && els.qrCanvas){ try{ window.QRCode.toCanvas(els.qrCanvas, els.studentLink.value, {width:128, margin:1}); }catch(e){ console.warn(e);} }
 }
 
-/* ===== 이벤트 ===== */
+/* ---------- 이벤트 ---------- */
 [els.tabBuild,els.tabOptions,els.tabPresent,els.tabResults].forEach(btn=>{
   btn?.addEventListener('click',()=>{ setActiveTab(btn); if(btn===els.tabPresent && window.__room) startTimer(window.__room.timerSec||30); });
 });
@@ -406,13 +396,12 @@ els.btnSubmitMCQ?.addEventListener('click', ()=>{ if(mcqSelected==null) return a
 els.btnCopyLink   ?.addEventListener('click', async ()=>{ if(!els.studentLink?.value) return; await navigator.clipboard.writeText(els.studentLink.value); els.btnCopyLink.textContent='복사됨'; setTimeout(()=>els.btnCopyLink.textContent='복사',1200); });
 els.btnOpenStudent?.addEventListener('click', ()=> window.open(els.studentLink?.value||'#','_blank'));
 
-/* ===== 부팅: 기본 admin으로 시작(학생 패널 초기 노출 방지) ===== */
+/* ---------- 부팅: 항상 관리자부터 (URL에 role=student 있을 때만 학생) ---------- */
 function autoReconnect(){
   loadLocal();
-  // 강제 기본값: admin
-  if(!MODE) MODE='admin';
-  setMode(MODE);
-  setActiveTab(els.tabBuild);             // 첫 탭은 문항
+  MODE='admin';               // ★ 항상 관리자부터 시작
+  setMode('admin');
+  setActiveTab(els.tabBuild); // 첫 탭 문항
   if(roomId) connect();
 }
 autoReconnect();
@@ -421,6 +410,6 @@ autoReconnect();
 (function fromURL(){
   const url=new URL(location.href);
   const role=url.searchParams.get('role'); const rid=url.searchParams.get('room');
-  if(role==='student'){ MODE='student'; setMode('student'); } // 이때에만 학생 패널 노출
+  if(role==='student'){ MODE='student'; setMode('student'); } // 이 때만 학생 패널 노출
   if(rid){ els.roomId&&(els.roomId.value=rid); connect(); }
 })();
