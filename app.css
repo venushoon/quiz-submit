@@ -11,6 +11,8 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 .wrap{flex-wrap:wrap} .gap{gap:8px} .between{justify-content:space-between}
 .align-center{align-items:center} .right{margin-left:auto} .mt{margin-top:10px}
 .muted{color:var(--muted)} .badge{background:#22304a;border:1px solid var(--line);padding:2px 8px;border-radius:999px;font-size:12px}
+.badge.blue{background:var(--blue)} .badge.yellow{background:var(--yellow)}
+.badge.green{background:var(--green)} .badge.red{background:var(--red)}
 .live-dot{width:10px;height:10px;border-radius:999px;background:#f43;display:inline-block;margin-right:8px;box-shadow:0 0 10px #f43}
 
 .topbar{position:sticky;top:0;z-index:10;background:#0e1624;padding:14px 16px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:auto 1fr auto;gap:14px}
@@ -40,30 +42,17 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 
 .builder{display:grid;gap:10px}
 .qcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px}
-.qcard .row{gap:10px}
 .qcard .qtext{width:100%;font-size:16px;margin:8px 0}
 .qcard .opt{width:240px}
 .qthumb{width:84px;height:60px;object-fit:cover;border:1px solid var(--line);border-radius:8px}
 
 .present .board{background:#0f172a;border:1px solid var(--line);border-radius:18px;padding:20px;min-height:260px;display:flex;flex-direction:column;gap:8px}
 .present .title{font-size:18px;opacity:.7}
-.present .question{font-size:32px;font-weight:700;margin:10px 0}
-.present .options{display:grid;gap:12px}
-.present .popt{background:#141f33;border:1px solid var(--line);padding:12px;border-radius:14px}
-.present .wait{opacity:.8;padding:10px 12px;border:1px dashed var(--accent);border-radius:12px}
-.qimg{max-width:100%;height:auto;border-radius:12px;border:1px solid var(--line);}
+.present .question{font-size:28px;font-weight:700}
+.pimg{max-width:480px;border-radius:12px;border:1px solid var(--line)}
 
-.grid-4{grid-template-columns:repeat(4,minmax(140px,1fr))}
-@media (max-width:920px){ .grid-4{grid-template-columns:repeat(2,minmax(140px,1fr))} }
+#resultsTable table{width:100%;border-collapse:collapse}
+#resultsTable th,#resultsTable td{border-bottom:1px solid var(--line);padding:10px;text-align:center}
 
-.counter{display:flex;gap:10px;align-items:center;margin-left:8px}
-.dot{display:inline-block;width:10px;height:10px;border-radius:999px}
-.dot.blue{background:var(--blue)} .dot.yellow{background:var(--yellow)}
-.dot.green{background:var(--green)} .dot.red{background:var(--red)}
-
-/* 학생 모드에서는 admin-only 전부 숨김 */
-body[data-role="student"] .admin-only{display:none!important}
-
-/* 밝은 프레젠테이션 옵션 */
-body.bright .present .board{background:#fff;color:#111;border-color:#e6e6e6}
-body.bright .present .popt{background:#fafafa;border-color:#e6e6e6}
+/* 학생모드일 때 관리자 UI 숨김 */
+body[data-mode="student"] .admin-only{display:none!important}
