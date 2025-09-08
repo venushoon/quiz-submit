@@ -57,6 +57,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 
 /* 학생/관리자 모드 토글 */
 .admin-only.hide{display:none!important}
+.hide{display:none} 
 
 /* 프레젠테이션/학생 공통 이미지 안전 표시 */
 .pimg{max-width:100%;max-height:260px;border:1px solid var(--line);border-radius:12px;margin-top:8px}
