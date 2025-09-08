@@ -53,6 +53,22 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 
 #resultsTable table{width:100%;border-collapse:collapse}
 #resultsTable th,#resultsTable td{border-bottom:1px solid var(--line);padding:10px;text-align:center}
+/* 기존 토큰/구조 유지 (파일 상단 변수/컴포넌트 정의는 그대로) */
+
+/* 학생/관리자 모드 토글 */
+.admin-only.hide{display:none!important}
+
+/* 프레젠테이션/학생 공통 이미지 안전 표시 */
+.pimg{max-width:100%;max-height:260px;border:1px solid var(--line);border-radius:12px;margin-top:8px}
+.pimg.hide{display:none}
+
+/* 학생용 대기/점 컬러 인디케이터 */
+.dot{width:8px;height:8px;border-radius:999px;display:inline-block;margin:0 6px 0 12px}
+.dot.blue{background:#3b82f6}.dot.yellow{background:#f59e0b}.dot.green{background:#16a34a}.dot.red{background:#ef4444}
+
+/* join dialog 스타일 */
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--text);padding:16px}
+dialog::backdrop{background:#0008}
 
 /* 학생모드일 때 관리자 UI 숨김 */
 body[data-mode="student"] .admin-only{display:none!important}
