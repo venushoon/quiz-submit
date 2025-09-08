@@ -12,6 +12,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 .align-center{align-items:center} .right{margin-left:auto} .mt{margin-top:10px}
 .muted{color:var(--muted)} .badge{background:#22304a;border:1px solid var(--line);padding:2px 8px;border-radius:999px;font-size:12px}
 .live-dot{width:10px;height:10px;border-radius:999px;background:#f43;display:inline-block;margin-right:8px;box-shadow:0 0 10px #f43}
+
 .admin-only.hide{display:none!important}
 
 .topbar{position:sticky;top:0;z-index:10;background:#0e1624;padding:14px 16px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:auto 1fr auto;gap:14px}
@@ -30,14 +31,15 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 .btn.ghost{background:transparent;border-color:var(--line)}
 
 .tabs{display:flex;gap:8px}
-.tab{background:#18233a;border:1px solid var(--line);color:#cfe0ff;padding:8px 12px;border-radius:10px;cursor:pointer}
+.tab{background:#18233a;border:1px solid var(--line);color:var(--text);padding:8px 12px;border-radius:10px;cursor:pointer}
 .tab.active{box-shadow:inset 0 0 0 2px var(--primary)}
 
 .panel{max-width:1100px;margin:16px auto;padding:0 16px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px}
 .card.hint{border:1px dashed var(--accent)}
 .grid{display:grid;grid-template-columns:2fr 1.2fr;gap:12px}
-.qr{display:block;border:1px dashed var(--accent);padding:6px;border-radius:12px;margin-bottom:8px;width:140px;height:140px}
+
+.qr{display:block;border:1px dashed var(--accent);padding:6px;border-radius:12px;margin-bottom:8px;width:132px;height:132px}
 
 .builder{display:grid;gap:10px}
 .qcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px}
@@ -71,3 +73,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 .s-options .optbtn{background:#132038;border:1px solid var(--line);border-radius:16px;padding:16px;font-size:20px;cursor:pointer}
 .s-options .optbtn.active{box-shadow:inset 0 0 0 2px var(--primary)}
 .s-submit{margin-top:8px}
+
+dialog{border:none;border-radius:16px;padding:0;background:transparent}
+dialog::backdrop{background:#0008}
+dialog > form.card{min-width:320px}
