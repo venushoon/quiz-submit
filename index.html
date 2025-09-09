@@ -10,25 +10,35 @@
 
   <!-- 스타일 -->
   <link rel="stylesheet" href="./app.css" />
-
-  <!-- Firebase v9 (모듈) - 헤더에서 '단 한 번' 초기화 -->
+  <!-- Firebase v9 (modular) + 전역 노출 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getFirestore }   from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    import {
+    getFirestore, doc, collection, getDoc, setDoc, updateDoc,
+    onSnapshot, runTransaction, getDocs, serverTimestamp, deleteDoc
+    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyCClNc95ykYCudmLHTPgpewZ60bZ8zukbo",
-      authDomain: "live-quiz-a14d1.firebaseapp.com",
-      projectId:  "live-quiz-a14d1",
-    };
+  // 본인 프로젝트 (이미 요청하신 값)
+  const firebaseConfig = {
+    apiKey: "AIzaSyCClNc95ykYCudmLHTPgpewZ60bZ8zukbo",
+    authDomain: "live-quiz-a14d1.firebaseapp.com",
+    projectId: "live-quiz-a14d1",
+  };
 
-    const app = initializeApp(firebaseConfig);
-    // 전역으로 Firestore 인스턴스만 노출(중복 초기화 방지)
-    window.db = getFirestore(app);
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+
+  // app.js에서 import 없이 바로 쓸 수 있도록 전역 노출
+  window.FS = {
+    db, doc, collection, getDoc, setDoc, updateDoc,
+    onSnapshot, runTransaction, getDocs, serverTimestamp, deleteDoc
+  };
   </script>
-
-  <!-- QRCode (전역 QRCode 객체 제공) -->
+  <!-- QRCode(전역 QRCode 객체) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+
+  <!-- 앱 로직 -->
+  <script defer src="./app.js"></script>
 </head>
 <body>
   <!-- 상단바 · 관리자 전용 UI는 .admin-only로 제어 -->
