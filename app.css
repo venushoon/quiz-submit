@@ -11,9 +11,9 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 .wrap{flex-wrap:wrap} .gap{gap:8px} .between{justify-content:space-between}
 .align-center{align-items:center} .right{margin-left:auto} .mt{margin-top:10px}
 .muted{color:var(--muted)} .badge{background:#22304a;border:1px solid var(--line);padding:2px 8px;border-radius:999px;font-size:12px}
-.badge.blue{background:var(--blue)} .badge.yellow{background:var(--yellow)}
-.badge.green{background:var(--green)} .badge.red{background:var(--red)}
 .live-dot{width:10px;height:10px;border-radius:999px;background:#f43;display:inline-block;margin-right:8px;box-shadow:0 0 10px #f43}
+
+.admin-only.hide{display:none!important}
 
 .topbar{position:sticky;top:0;z-index:10;background:#0e1624;padding:14px 16px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:auto 1fr auto;gap:14px}
 .brand{display:flex;align-items:center;gap:8px}
@@ -38,38 +38,22 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px}
 .card.hint{border:1px dashed var(--accent)}
 .grid{display:grid;grid-template-columns:2fr 1.2fr;gap:12px}
+
 .qr{display:block;border:1px dashed var(--accent);padding:6px;border-radius:12px;margin-bottom:8px;width:140px;height:140px}
 
 .builder{display:grid;gap:10px}
-.qcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px}
-.qcard .qtext{width:100%;font-size:16px;margin:8px 0}
-.qcard .opt{width:240px}
-.qthumb{width:84px;height:60px;object-fit:cover;border:1px solid var(--line);border-radius:8px}
+.qcard{background:#0f1929;border:1px solid var(--line);border-radius:12px;padding:12px}
+.qcard .row{gap:8px}
+.switch{display:flex;gap:6px;align-items:center}
 
-.present .board{background:#0f172a;border:1px solid var(--line);border-radius:18px;padding:20px;min-height:260px;display:flex;flex-direction:column;gap:8px}
-.present .title{font-size:18px;opacity:.7}
-.present .question{font-size:28px;font-weight:700}
-.pimg{max-width:480px;border-radius:12px;border:1px solid var(--line)}
-
-#resultsTable table{width:100%;border-collapse:collapse}
-#resultsTable th,#resultsTable td{border-bottom:1px solid var(--line);padding:10px;text-align:center}
-/* 기존 토큰/구조 유지 (파일 상단 변수/컴포넌트 정의는 그대로) */
-
-/* 학생/관리자 모드 토글 */
-.admin-only.hide{display:none!important}
-.hide{display:none} 
-
-/* 프레젠테이션/학생 공통 이미지 안전 표시 */
-.pimg{max-width:100%;max-height:260px;border:1px solid var(--line);border-radius:12px;margin-top:8px}
+.pgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.popt{background:#162238;border:1px solid var(--line);border-radius:16px;padding:18px;text-align:center}
+.pimg{max-width:480px;border-radius:12px;border:1px solid var(--line);display:block;margin-top:10px}
 .pimg.hide{display:none}
 
-/* 학생용 대기/점 컬러 인디케이터 */
-.dot{width:8px;height:8px;border-radius:999px;display:inline-block;margin:0 6px 0 12px}
-.dot.blue{background:#3b82f6}.dot.yellow{background:#f59e0b}.dot.green{background:#16a34a}.dot.red{background:#ef4444}
+.dot{display:inline-block;width:10px;height:10px;border-radius:999px;margin-left:6px}
+.dot.blue{background:var(--blue)} .dot.yellow{background:var(--yellow)}
+.dot.green{background:var(--green)} .dot.red{background:var(--red)}
 
-/* join dialog 스타일 */
-dialog{border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--text);padding:16px}
-dialog::backdrop{background:#0008}
-
-/* 학생모드일 때 관리자 UI 숨김 */
-body[data-mode="student"] .admin-only{display:none!important}
+.leaderboard table{width:100%;border-collapse:collapse}
+.leaderboard th,.leaderboard td{border-bottom:1px solid var(--line);padding:10px;text-align:left}
