@@ -28,6 +28,12 @@
 
   <!-- QRCode: 먼저 로드(헤더 근처) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+
+  <!-- head 마지막 줄에 파비콘(선택) -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%235866ff'/%3E%3Ctext x='32' y='40' text-anchor='middle' font-size='28' fill='white' font-family='Arial'%3EL%3C/text%3E%3C/svg%3E"/>
+
+  <!-- (중요) 앱 스크립트는 모듈로 로드 -->
+  <script type="module" src="./app.js"></script>
 </head>
 <body>
   <!-- 상단바(관리자 전용) -->
