@@ -64,24 +64,35 @@ function loadLocal(){
   }catch{}
 }
 
-// ------------ UI 표시 제어 --------------
+// ---- 패널 헬퍼 (추가) ----
+function hideAdminPanels(){
+  [els.pBuild, els.pOptions, els.pPresent, els.pResults].forEach(p=>p.classList.add("hide"));
+}
 function showTab(name){
+  // name: 'build' | 'options' | 'present' | 'results'
   const map = { build:els.pBuild, options:els.pOptions, present:els.pPresent, results:els.pResults };
-  Object.values(map).forEach(p=>p.classList.add("hide"));
-  map[name]?.classList.remove("hide");
+  hideAdminPanels();
+  if(map[name]) map[name].classList.remove("hide");
 
-  [els.tabBuild,els.tabOptions,els.tabPresent,els.tabResults].forEach(t=>t.classList.remove("active"));
+  [els.tabBuild,els.tabOptions,els.tabPresent,els.tabResults].forEach(t=>t?.classList.remove("active"));
   ({build:els.tabBuild, options:els.tabOptions, present:els.tabPresent, results:els.tabResults}[name])?.classList.add("active");
 }
 
 function setMode(m){
-  MODE=m;
-  // 관리자 전용 UI
+  MODE = m;
+
+  // 관리자 UI 토글
   $$(".admin-only").forEach(n=>n.classList.toggle("hide", m!=="admin"));
-  // 학생 전용 루트
-  els.studentAccess.classList.toggle("hide", m!=="student");
-  // 기본 탭
-  if(m==="admin") showTab("build");
+
+  if(m === "admin"){
+    // 관리자: 관리자 패널 보이기, 학생 뷰 숨기기
+    els.studentAccess.classList.add("hide");
+    showTab("build"); // 첫 탭은 항상 '문항'
+  }else{
+    // 학생: 관리자 패널 모두 숨김 + 학생 뷰만 보이기
+    hideAdminPanels();
+    els.studentAccess.classList.remove("hide");
+  }
 }
 
 function heartbeatOnline(isOn){ els.liveDot.style.background = isOn? "#f43" : "#555"; }
@@ -488,7 +499,16 @@ els.btnShowMy?.addEventListener("click", async ()=>{
   box.appendChild(tb);
   els.myResult.innerHTML=""; els.myResult.appendChild(box);
 });
+// 모드 표시/카운터 처리 아래 적당한 위치에 추가
+  if (MODE === "admin" && r.mode === "ended") showTab("results");
 
+  async function startQuiz(){
+  const snap = await getDoc(roomRef(roomId));
+  const r = snap.data() || {};
+  const total = (r.questions || []).length;
+  if(!total){ alert("저장된 문항이 없습니다. 문항을 먼저 만들고 저장해 주세요."); return; }
+  await updateDoc(roomRef(roomId), { mode:"active", currentIndex:0, accept:true });
+}
 // 부팅
 (function boot(){
   // URL 파싱: ?role=student&room=class1
