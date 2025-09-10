@@ -5,20 +5,20 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>실시간 퀴즈</title>
 
-  <!-- 파비콘 404 방지 (빈 data URI) -->
+  <!-- 404 파비콘 방지 -->
   <link rel="icon" href="data:," />
 
   <!-- 스타일 -->
   <link rel="stylesheet" href="./app.css" />
 
-  <!-- QRCode (HEAD에 선로딩: 'QRCode is not defined' 방지) -->
+  <!-- QRCode (HEAD 선로딩: QRCode is not defined 방지) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
-  <!-- Firebase compat (글로벌 window.firebase 사용 / app.js가 type="module" 아님) -->
+  <!-- Firebase compat (글로벌 window.firebase 사용) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-  <!-- Firebase 초기화 (이전 완성본과 동일 프로젝트) -->
+  <!-- Firebase 초기화 -->
   <script>
     (function initFirebase() {
       if (window.firebase?.apps?.length) return;
@@ -65,7 +65,6 @@
         <input id="fileLoad" type="file" accept=".json,.txt,.csv" hidden />
       </div>
 
-      <!-- 수동 출제 가이드(요청 시 삭제 가능 — 기본은 디자인 유지) -->
       <div id="manualGuide" class="card subtle">
         <h3>수동 출제 가이드</h3>
         <ol>
@@ -76,7 +75,6 @@
         </ol>
       </div>
 
-      <!-- 문항 빌더 -->
       <div id="builder" class="qbuilder"></div>
     </section>
 
@@ -87,29 +85,14 @@
           <h3>제출 정책 & 진행</h3>
 
           <div class="row gap">
-            <label class="radio">
-              <input type="radio" name="policy" id="chkDeviceOnce" checked />
-              <span>기기당 1회</span>
-            </label>
-            <label class="radio">
-              <input type="radio" name="policy" id="chkNameOnce" />
-              <span>실명당 1회</span>
-            </label>
+            <label class="radio"><input type="radio" name="policy" id="chkDeviceOnce" checked /><span>기기당 1회</span></label>
+            <label class="radio"><input type="radio" name="policy" id="chkNameOnce" /><span>실명당 1회</span></label>
           </div>
 
           <div class="row gap">
-            <label class="check">
-              <input type="checkbox" id="chkAccept" />
-              <span>제출 허용</span>
-            </label>
-            <label class="check">
-              <input type="checkbox" id="chkReveal" />
-              <span>결과 공개</span>
-            </label>
-            <label class="check">
-              <input type="checkbox" id="chkBright" />
-              <span>프레젠테이션 밝은 모드</span>
-            </label>
+            <label class="check"><input type="checkbox" id="chkAccept" /><span>제출 허용</span></label>
+            <label class="check"><input type="checkbox" id="chkReveal" /><span>결과 공개</span></label>
+            <label class="check"><input type="checkbox" id="chkBright" /><span>프레젠테이션 밝은 모드</span></label>
           </div>
 
           <div class="row gap middle">
@@ -162,9 +145,7 @@
       <div id="presentCard" class="present card">
         <h2 id="pTitle" class="title">-</h2>
         <p id="pQ" class="question muted">시작 버튼을 누르면 문항이 제시됩니다.</p>
-        <div id="pImgWrap" class="pimg hide">
-          <img id="pImg" alt="문항 이미지" />
-        </div>
+        <div id="pImgWrap" class="pimg hide"><img id="pImg" alt="문항 이미지" /></div>
         <div id="pOpts" class="poptions"></div>
       </div>
 
@@ -185,7 +166,7 @@
       <div id="leaderboard" class="leaderboard hide"></div>
     </section>
 
-    <!-- 학생 전용 섹션 (링크/QR 진입 시) -->
+    <!-- 학생 전용 -->
     <section id="studentPanel" class="panel hide">
       <div class="card">
         <h3 id="sState">세션 접속 필요</h3>
@@ -195,27 +176,15 @@
         </div>
 
         <div id="sWrap" class="hide">
-          <div class="shead">
-            <span class="badge" id="badgeType">-</span>
-            <h2 id="sQTitle" class="title">-</h2>
-          </div>
-
-          <div id="sQImgWrap" class="pimg hide">
-            <img id="sQImg" alt="문항 이미지" />
-          </div>
-
+          <div class="shead"><span class="badge" id="badgeType">-</span><h2 id="sQTitle" class="title">-</h2></div>
+          <div id="sQImgWrap" class="pimg hide"><img id="sQImg" alt="문항 이미지" /></div>
           <p id="sQText" class="question">-</p>
-
           <div id="mcqBox" class="sopts"></div>
-
           <div id="shortBox" class="row gap hide">
             <input id="shortInput" class="input grow" placeholder="정답을 입력하세요" />
             <button id="btnShortSend" class="btn success">제출</button>
           </div>
-
-          <div class="row end">
-            <button id="btnSubmitMcq" class="btn success hide">제출</button>
-          </div>
+          <div class="row end"><button id="btnSubmitMcq" class="btn success hide">제출</button></div>
         </div>
 
         <div id="sDone" class="hide">
@@ -226,7 +195,7 @@
     </section>
   </main>
 
-  <!-- 앱 스크립트 (module 아님 / firebase compat 사용) -->
+  <!-- 앱 스크립트 -->
   <script defer src="./app.js"></script>
 </body>
 </html>
