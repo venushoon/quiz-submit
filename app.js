@@ -7,7 +7,7 @@ import {
   collection, getDocs, runTransaction, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-/* 본인 프로젝트로 교체 가능(이미 사용 중인 값 유지) */
+/* 본인 프로젝트로 교체 가능 */
 const firebaseConfig = {
   apiKey: "AIzaSyCClNc95ykYCudmLHTPgpewZ60bZ8zukbo",
   authDomain: "live-quiz-a14d1.firebaseapp.com",
@@ -29,45 +29,117 @@ let me     = { id:null, name:"" };
 let unsubRoom=null, unsubResp=null;
 let timerHandle=null;
 
+/* 한 번만 바인딩되게 하는 헬퍼 */
+function bindOnce(el, type, handler){
+  if(!el) return;
+  el.__bindMap = el.__bindMap || {};
+  if(el.__bindMap[type]) return;
+  el.addEventListener(type, handler);
+  el.__bindMap[type] = true;
+}
+
+/* DOM 핸들(필수+옵션) */
 const els = {
-  // 공통/상단
+  // 상단/탭
   tabBuild: $("#tabBuild"), tabOptions: $("#tabOptions")||$("#tabControl"), tabPresent: $("#tabPresent"), tabResults: $("#tabResults"),
   pBuild: $("#panelBuild"), pOptions: $("#panelOptions")||$("#panelControl"), pPresent: $("#panelPresent"), pResults: $("#panelResults"),
   roomId: $("#roomId"), btnConnect: $("#btnConnect"), btnLogout: $("#btnLogout"), roomStatus: $("#roomStatus"),
+
   // 문항 빌더
   quizTitle: $("#quizTitle"), questionCount: $("#questionCount"),
   btnBuildForm: $("#btnBuildForm"), btnLoadSample: $("#btnLoadSample"), btnSaveQuiz: $("#btnSaveQuiz"),
   builder: $("#builder"),
+
   // 옵션
-  chkDevicePolicy: $("#chkDevicePolicy"),  // 기기당 1회
-  chkNamePolicy: $("#chkNamePolicy"),      // 실명당 1회
-  chkBright: $("#chkBrightMode"),          // 프레젠테이션 밝은 모드
-  timerSec: $("#timerSec"),                // 타이머(초) 입력
+  chkDevicePolicy: $("#chkDevicePolicy"), chkNamePolicy: $("#chkNamePolicy"),
+  chkBright: $("#chkBrightMode"), timerSec: $("#timerSec"),
   btnSaveOptions: $("#btnSaveOptions"),
-  // 학생 접속 (옵션 탭 전용 표시)
+
+  // 학생 접속 (옵션 탭)
   studentLink: $("#studentLink"), btnCopyLink: $("#btnCopyLink"), btnOpenStudent: $("#btnOpenStudent"), qrCanvas: $("#qrCanvas"),
+
   // 프레젠테이션
   btnStart: $("#btnStart"), btnPrev: $("#btnPrev"), btnNext: $("#btnNext"), btnEndAll: $("#btnEndAll"),
   pTitle: $("#pTitle"), pQ: $("#pQ"), pOpts: $("#pOpts"), pFooter: $("#pFooter"),
-  // 진행/현황
+
+  // 현황/결과(옵션)
   progress: $("#progress"), nowQuestion: $("#nowQuestion"),
   chips: $("#chips"), shortAnswers: $("#shortAnswers"),
+
   // 결과
   resultsTable: $("#resultsTable"), btnExportCSV: $("#btnExportCSV"),
-  // 초기화/백업
+
+  // 초기화/백업(옵션)
   btnResetAll: $("#btnResetAll"), btnSaveJSON: $("#btnSaveJSON"), fileLoad: $("#fileLoad"),
-  // 학생 패널
+
+  // 학생 패널(없으면 동적 생성)
   studentPanel: $("#studentPanel"), studentName: $("#studentName"), btnJoin: $("#btnJoin"),
   mcqBox: $("#mcqBox"), shortBox: $("#shortBox"), shortInput: $("#shortInput"), btnShortSend: $("#btnShortSend"),
   badgeType: $("#badgeType"), sQText: $("#sQText"),
-  // 안내/가이드
-  guideAdmin: $("#guideAdmin"), guideStudent: $("#guideStudent"),
-  // 학생 대기 오버레이(팝업)
+
+  // 학생 대기 오버레이(없으면 동적 생성)
   waitOverlay: $("#waitOverlay"), waitText: $("#waitText"),
 };
 
-/* 안전 경고(누락된 엘리먼트 로깅) */
-Object.entries(els).forEach(([k,v])=>{ if(!v) console.warn("[warn] missing element:", k); });
+/* (중요) 옵션 요소는 경고 안 띄움, 필수만 점검 */
+(function warnCritical(){
+  const critical = {
+    roomId: els.roomId, btnConnect: els.btnConnect,
+    tabBuild: els.tabBuild, tabPresent: els.tabPresent, tabResults: els.tabResults
+  };
+  Object.entries(critical).forEach(([k,v])=>{
+    if(!v) console.warn("[warn] critical element missing:", k);
+  });
+})();
+
+/* 동적 학생 UI 생성 */
+function ensureStudentUI(){
+  // 참가 바(학생 입력창)
+  if(!$("#studentPanel")){
+    const wrap = document.createElement("div");
+    wrap.id = "studentPanel";
+    wrap.className = "student-bar";
+    wrap.innerHTML = `
+      <input id="studentName" class="input lg" placeholder="이름 또는 번호를 입력하세요!">
+      <button id="btnJoin" class="btn primary">참가</button>
+    `;
+    document.body.appendChild(wrap);
+  }
+  // 대기 오버레이
+  if(!$("#waitOverlay")){
+    const ov = document.createElement("div");
+    ov.id = "waitOverlay";
+    ov.className = "wait-overlay hide";
+    ov.innerHTML = `<div class="wait-card"><span id="waitText">대기 중입니다…</span></div>`;
+    document.body.appendChild(ov);
+  }
+  // 학생 문제 컨테이너(최소 구성)
+  if(!$("#mcqBox")){
+    const m=document.createElement("div"); m.id="mcqBox"; document.body.appendChild(m);
+  }
+  if(!$("#shortBox")){
+    const s=document.createElement("div"); s.id="shortBox"; s.className="hide";
+    s.innerHTML=`
+      <input id="shortInput" class="input" placeholder="정답 입력" />
+      <button id="btnShortSend" class="btn primary">제출</button>`;
+    document.body.appendChild(s);
+  }
+  if(!$("#badgeType")){
+    const b=document.createElement("div"); b.id="badgeType"; b.className="badgeType"; document.body.appendChild(b);
+  }
+  if(!$("#sQText")){
+    const t=document.createElement("div"); t.id="sQText"; t.className="sQText"; document.body.appendChild(t);
+  }
+}
+
+/* 새로 생긴 노드 rebind */
+function refreshEls(){
+  Object.assign(els, {
+    studentPanel: $("#studentPanel"), studentName: $("#studentName"), btnJoin: $("#btnJoin"),
+    waitOverlay: $("#waitOverlay"), waitText: $("#waitText"),
+    mcqBox: $("#mcqBox"), shortBox: $("#shortBox"), shortInput: $("#shortInput"), btnShortSend: $("#btnShortSend"),
+  });
+}
 
 /***********************
  * Local cache
@@ -102,49 +174,33 @@ async function ensureRoom(id){
 /***********************
  * Mode & Tabs
  ***********************/
-function setMode(m){
-  MODE=m;
-  // 학생은 관리자 UI 숨기기
-  const adminWrap = $("#adminWrap");
-  if(adminWrap) adminWrap.style.display = (m==="admin") ? "" : "none";
-
-  // 학생 가이드/관리자 가이드 토글
-  if(els.guideAdmin)   els.guideAdmin.classList.toggle("hide", m!=="admin");
-  if(els.guideStudent) els.guideStudent.classList.toggle("hide", m!=="student");
-
-  // 학생 패널 표시
-  if(els.studentPanel) els.studentPanel.classList.toggle("hide", m!=="student");
-
-  // 탭 표시(학생은 프레젠테이션만 봄)
-  if(MODE==="admin"){
-    showTab(els.tabBuild || els.tabOptions || els.tabPresent); // 기본 문항 탭
-  } else {
-    showTab(null); // 관리자 탭 감춤
-  }
-
-  // 상태 텍스트
-  if(els.roomStatus){
-    if(!roomId){
-      els.roomStatus.textContent = (m==='admin'?'세션에 접속해 주세요.':'학생: 세션 접속 후 참가');
-    }else{
-      els.roomStatus.textContent = `세션: ${roomId} · 온라인`;
-    }
-  }
-}
-
 function showTab(tabBtn){
-  // 전체 패널 숨기고 버튼 active 초기화
   [els.tabBuild,els.tabOptions,els.tabPresent,els.tabResults].forEach(b=>b?.classList.remove("active"));
   [els.pBuild,els.pOptions,els.pPresent,els.pResults].forEach(p=>p?.classList.add("hide"));
-
-  if(!tabBtn){ // 학생모드일 때: 관리자 패널 전부 숨김
-    return;
-  }
+  if(!tabBtn) return;
   tabBtn.classList.add("active");
   if(tabBtn===els.tabBuild && els.pBuild) els.pBuild.classList.remove("hide");
   if(tabBtn===els.tabOptions && els.pOptions) els.pOptions.classList.remove("hide");
   if(tabBtn===els.tabPresent && els.pPresent) els.pPresent.classList.remove("hide");
   if(tabBtn===els.tabResults && els.pResults) els.pResults.classList.remove("hide");
+}
+
+function setMode(m){
+  MODE=m;
+  const adminWrap = $("#adminWrap");
+  if(adminWrap) adminWrap.style.display = (m==="admin") ? "" : "none";
+
+  if(els.roomStatus){
+    if(!roomId) els.roomStatus.textContent = (m==='admin'?'세션에 접속해 주세요.':'학생: 세션 접속 후 참가');
+    else els.roomStatus.textContent = `세션: ${roomId} · 온라인`;
+  }
+
+  // 학생이면 관리자 탭 숨김
+  if(MODE==="admin"){
+    showTab(els.tabBuild || els.tabPresent || els.tabResults);
+  } else {
+    showTab(null);
+  }
 }
 
 /***********************
@@ -155,10 +211,9 @@ async function connect(){
   if(!id){ alert("세션 코드를 입력하세요."); return; }
   roomId=id; await ensureRoom(roomId);
 
-  // 입력 잠금
   if(els.roomId){ els.roomId.disabled=true; els.roomId.classList.add("locked"); }
-  if(els.btnConnect){ els.btnConnect.classList.add("hide"); }
-  if(els.btnLogout){ els.btnLogout.classList.remove("hide"); }
+  els.btnConnect?.classList.add("hide");
+  els.btnLogout?.classList.remove("hide");
 
   listenRoom(roomId);
   listenResponses(roomId);
@@ -166,26 +221,22 @@ async function connect(){
   if(els.roomStatus) els.roomStatus.textContent=`세션: ${roomId} · 온라인`;
   saveLocal();
 
-  // 관리자 첫 화면은 문항 탭
   if(MODE==="admin" && els.tabBuild) showTab(els.tabBuild);
 }
 
 function logout(){
-  // 해제
   if(unsubRoom) unsubRoom(); if(unsubResp) unsubResp();
   unsubRoom=null; unsubResp=null;
 
   if(els.roomId){ els.roomId.disabled=false; els.roomId.classList.remove("locked"); }
-  if(els.btnConnect){ els.btnConnect.classList.remove("hide"); }
-  if(els.btnLogout){ els.btnLogout.classList.add("hide"); }
+  els.btnConnect?.classList.remove("hide");
+  els.btnLogout?.classList.add("hide");
   if(els.roomStatus) els.roomStatus.textContent=`세션 오프라인`;
 
-  // 링크/QR 지우기
   if(els.studentLink) els.studentLink.value="";
   if(els.qrCanvas && window.QRCode){ els.qrCanvas.getContext?.("2d")?.clearRect(0,0,els.qrCanvas.width,els.qrCanvas.height); }
 
-  roomId="";
-  saveLocal();
+  roomId=""; saveLocal();
 }
 
 /***********************
@@ -250,7 +301,6 @@ function cardRow(no,q){
     mcq.classList.toggle("hide", isShort);
     short.classList.toggle("hide", !isShort);
   }));
-  // 이미지 업로드 -> Base64 저장
   const fileInput=$(".imgInput",wrap), imgData=$(".imgData",wrap);
   if(fileInput){
     fileInput.addEventListener("change", async (e)=>{
@@ -283,7 +333,7 @@ function collectBuilder(){
 }
 
 /***********************
- * Options Save (탭 이동 금지!)
+ * Options Save
  ***********************/
 async function saveOptions(){
   if(!roomId){ alert("세션 먼저 접속하세요."); return; }
@@ -298,7 +348,6 @@ async function saveOptions(){
   await setDoc(roomRef(roomId), { policy, options }, { merge:true });
   buildStudentLink();               // 저장 후 즉시 링크/QR 갱신
   alert("옵션 저장 완료!");
-  // 여기서 탭 이동하지 않음(버그 원인 제거)
 }
 
 /***********************
@@ -317,7 +366,6 @@ async function step(delta){
     if(total<=0){ tx.update(ref,{ mode:"ended", accept:false }); return; }
     let next=(r.currentIndex??-1)+delta;
     if(next>=total){
-      // 끝: 종료로 전환
       tx.update(ref, { currentIndex: total-1, mode:"ended", accept:false });
       return;
     }
@@ -325,10 +373,7 @@ async function step(delta){
     tx.update(ref, { currentIndex: next, accept:true });
   });
 }
-async function finishAll(){
-  if(!roomId) return;
-  await updateDoc(roomRef(roomId), { mode:"ended", accept:false });
-}
+async function finishAll(){ if(roomId) await updateDoc(roomRef(roomId), { mode:"ended", accept:false }); }
 
 /***********************
  * Submit / Grade
@@ -338,16 +383,16 @@ function ensureDeviceId(){
   if(!id){ id=Math.random().toString(36).slice(2,10); localStorage.setItem("quiz.device", id); }
   return id;
 }
+function showWait(msg){ if(els.waitText) els.waitText.textContent=msg||"대기 중입니다…"; els.waitOverlay?.classList.remove("hide"); }
+function hideWait(){ els.waitOverlay?.classList.add("hide"); }
+
 async function join(){
   if(!roomId) return alert("세션에 먼저 접속하세요.");
   const name=(els.studentName?.value||"").trim(); if(!name) return alert("이름/번호를 입력하세요.");
   me = { id: ensureDeviceId(), name };
-  await setDoc(doc(respCol(roomId), me.id), {
-    name, joinedAt: serverTimestamp(), alive:true
-  }, { merge:true });
+  await setDoc(doc(respCol(roomId), me.id), { name, joinedAt: serverTimestamp(), alive:true }, { merge:true });
   saveLocal();
-  // 참가 후에는 '대기' 오버레이 유지 → 교사가 시작하면 해제됨
-  showWait("제출 버튼을 눌러주세요."); // 안내 문구 유지(요청사항)
+  showWait("제출 버튼을 눌러주세요."); // 대기 유지
 }
 
 async function submit(value){
@@ -355,13 +400,10 @@ async function submit(value){
   if(!r.accept){ alert("지금은 제출할 수 없습니다."); return; }
   if(!me.id){ alert("먼저 참가하세요."); return; }
   const idx=r.currentIndex; const q=r.questions?.[idx]; if(!q) return;
-
-  // 제출 정책(중복 제출 방지)
   const ref=doc(respCol(roomId), me.id);
   const snap=await getDoc(ref);
   const prev=snap.exists()? (snap.data().answers||{}) : {};
   if(prev[idx]!=null) return alert("이미 제출했습니다.");
-
   let correct=null;
   if(q.type==='mcq' && typeof value==='number'){ correct=(value===(q.answerIndex??-999)); }
   if(q.type==='short' && typeof value==='string'){
@@ -379,115 +421,7 @@ async function grade(uid, qIndex, ok){
 /***********************
  * Rendering
  ***********************/
-function renderRoom(r){
-  const total=r.questions?.length||0; const idx=r.currentIndex??-1;
-
-  // 관리자 탭 UI 상태
-  if(MODE==="admin"){
-    if(els.progress) els.progress.textContent = `${Math.max(0,idx+1)}/${total}`;
-    if(els.nowQuestion) els.nowQuestion.textContent = (idx>=0 && r.questions[idx])? r.questions[idx].text : "-";
-    // 프레젠테이션 콘텐츠
-    if(els.pTitle) els.pTitle.textContent = r.title||roomId;
-    if(els.pQ && els.pOpts){
-      els.pOpts.innerHTML="";
-      if(r.mode!=="active" || idx<0){
-        // 시작 전 안내
-        els.pQ.textContent = "시작 버튼을 누르면 문항이 제시됩니다.";
-        if(els.pFooter) els.pFooter.innerHTML = buildLegendHTML();
-      } else {
-        const q=r.questions[idx];
-        els.pQ.textContent = q.text;
-        if(q.imageData){ // 이미지 있을 때만
-          let old = $("#pQImage");
-          if(!old){ old=document.createElement("img"); old.id="pQImage"; old.className="pQimg"; els.pQ.parentElement.appendChild(old); }
-          old.src = q.imageData;
-          old.style.display="block";
-        } else {
-          const old=$("#pQImage"); if(old) old.style.display="none";
-        }
-        if(q.type==='mcq'){
-          q.options.forEach((t,i)=>{ const d=document.createElement("div"); d.className="popt"; d.textContent=`${i+1}. ${t}`; els.pOpts.appendChild(d); });
-        }
-        if(els.pFooter) els.pFooter.innerHTML = buildLegendHTML();
-      }
-    }
-    // 종료 시 결과 탭 전환
-    if(r.mode==="ended" && els.tabResults){ showTab(els.tabResults); }
-  }
-
-  // 학생 화면
-  if(MODE==="student"){
-    const atActive = (r.mode==="active" && idx>=0 && r.questions[idx]);
-    // 시작 전/종료 시: 항상 대기 오버레이(또는 종료 안내)
-    if(!atActive){
-      if(r.mode==="ended"){
-        showWait("퀴즈가 종료되었습니다! '내 결과 보기'를 눌러 확인하세요.");
-      } else {
-        showWait("제출 버튼을 눌러주세요.");
-      }
-      // 문제 영역 비움
-      if(els.badgeType) els.badgeType.textContent="대기";
-      if(els.sQText) els.sQText.textContent="대기 중입니다…";
-      if(els.mcqBox) els.mcqBox.innerHTML="";
-      if(els.shortBox) els.shortBox.classList.add("hide");
-      return;
-    }
-    // 진행 중: 대기 오버레이 해제
-    hideWait();
-
-    const q=r.questions[idx];
-    if(els.badgeType) els.badgeType.textContent = q.type==='mcq'?'객관식':'주관식';
-    if(els.sQText) els.sQText.textContent=q.text;
-
-    // 이미지(학생) — 있을 때만 렌더
-    const sImg=$("#sQImage");
-    if(q.imageData){
-      if(sImg){ sImg.src=q.imageData; sImg.style.display="block"; }
-    } else if(sImg){
-      sImg.style.display="none";
-    }
-
-    if(q.type==='mcq'){
-      if(els.mcqBox){
-        els.mcqBox.innerHTML="";
-        q.options.forEach((opt,i)=>{
-          const b=document.createElement("button");
-          b.className="optbtn"; b.textContent=`${i+1}. ${opt}`;
-          b.addEventListener("click", ()=>{
-            // 선택 후 '제출' 버튼으로 제출
-            const oldSel = els.mcqBox.querySelector(".optbtn.selected");
-            if(oldSel) oldSel.classList.remove("selected");
-            b.classList.add("selected");
-          });
-          els.mcqBox.appendChild(b);
-        });
-        // 제출 버튼(하단)
-        const submitBtn = document.createElement("button");
-        submitBtn.className="btn primary block mt8";
-        submitBtn.textContent="제출";
-        submitBtn.addEventListener("click", ()=>{
-          const sel = els.mcqBox.querySelector(".optbtn.selected");
-          if(!sel) return alert("보기를 선택하세요.");
-          const idxSel = Array.from(els.mcqBox.querySelectorAll(".optbtn")).indexOf(sel);
-          submit(idxSel);
-        });
-        els.mcqBox.appendChild(submitBtn);
-      }
-      if(els.shortBox) els.shortBox.classList.add("hide");
-    } else {
-      if(els.mcqBox) els.mcqBox.innerHTML="";
-      if(els.shortBox){
-        els.shortBox.classList.remove("hide");
-        if(els.btnShortSend){
-          els.btnShortSend.onclick = ()=> submit((els.shortInput?.value||"").trim());
-        }
-      }
-    }
-  }
-}
-
 function buildLegendHTML(){
-  // 파랑/노랑/초록/빨강 점으로 표시
   return `
     <div class="legend">
       <span class="dot blue"></span>참가
@@ -498,25 +432,111 @@ function buildLegendHTML(){
   `;
 }
 
+function renderRoom(r){
+  const total=r.questions?.length||0; const idx=r.currentIndex??-1;
+
+  if(MODE==="admin"){
+    if(els.progress) els.progress.textContent = `${Math.max(0,idx+1)}/${total}`;
+    if(els.nowQuestion) els.nowQuestion.textContent = (idx>=0 && r.questions[idx])? r.questions[idx].text : "-";
+    if(els.pTitle) els.pTitle.textContent = r.title||roomId;
+
+    if(els.pQ && els.pOpts){
+      els.pOpts.innerHTML="";
+      if(r.mode!=="active" || idx<0){
+        els.pQ.textContent = "시작 버튼을 누르면 문항이 제시됩니다.";
+        els.pFooter && (els.pFooter.innerHTML = buildLegendHTML());
+      } else {
+        const q=r.questions[idx];
+        els.pQ.textContent = q.text;
+        // 이미지(있을 때만)
+        let img=$("#pQImage");
+        if(q.imageData){
+          if(!img){ img=document.createElement("img"); img.id="pQImage"; img.className="pQimg"; els.pQ.parentElement.appendChild(img); }
+          img.src=q.imageData; img.style.display="block";
+        } else if(img){ img.style.display="none"; }
+        if(q.type==='mcq'){
+          q.options.forEach((t,i)=>{ const d=document.createElement("div"); d.className="popt"; d.textContent=`${i+1}. ${t}`; els.pOpts.appendChild(d); });
+        }
+        els.pFooter && (els.pFooter.innerHTML = buildLegendHTML());
+      }
+    }
+    if(r.mode==="ended" && els.tabResults){ showTab(els.tabResults); }
+  }
+
+  if(MODE==="student"){
+    const atActive = (r.mode==="active" && idx>=0 && r.questions[idx]);
+    if(!atActive){
+      if(r.mode==="ended"){
+        showWait("퀴즈가 종료되었습니다! '내 결과 보기'를 눌러 확인하세요.");
+      } else {
+        showWait("제출 버튼을 눌러주세요.");
+      }
+      els.badgeType && (els.badgeType.textContent="대기");
+      els.sQText && (els.sQText.textContent="대기 중입니다…");
+      els.mcqBox && (els.mcqBox.innerHTML="");
+      els.shortBox && els.shortBox.classList.add("hide");
+      return;
+    }
+    hideWait();
+
+    const q=r.questions[idx];
+    els.badgeType && (els.badgeType.textContent = q.type==='mcq'?'객관식':'주관식');
+    els.sQText && (els.sQText.textContent=q.text);
+
+    // 학생용 이미지(있을 때만)
+    let sImg=$("#sQImage");
+    if(q.imageData){
+      if(!sImg){ sImg=document.createElement("img"); sImg.id="sQImage"; sImg.className="sQimg"; els.sQText?.after(sImg); }
+      sImg.src=q.imageData; sImg.style.display="block";
+    } else if(sImg){ sImg.style.display="none"; }
+
+    if(q.type==='mcq'){
+      if(els.mcqBox){
+        els.mcqBox.innerHTML="";
+        q.options.forEach((opt,i)=>{
+          const b=document.createElement("button");
+          b.className="optbtn"; b.textContent=`${i+1}. ${opt}`;
+          b.addEventListener("click", ()=>{
+            els.mcqBox.querySelector(".optbtn.selected")?.classList.remove("selected");
+            b.classList.add("selected");
+          });
+          els.mcqBox.appendChild(b);
+        });
+        const submitBtn = document.createElement("button");
+        submitBtn.className="btn primary block mt8";
+        submitBtn.textContent="제출";
+        submitBtn.addEventListener("click", ()=>{
+          const sel=els.mcqBox.querySelector(".optbtn.selected");
+          if(!sel) return alert("보기를 선택하세요.");
+          const idxSel = Array.from(els.mcqBox.querySelectorAll(".optbtn")).indexOf(sel);
+          submit(idxSel);
+        });
+        els.mcqBox.appendChild(submitBtn);
+      }
+      els.shortBox && els.shortBox.classList.add("hide");
+    } else {
+      els.mcqBox && (els.mcqBox.innerHTML="");
+      if(els.shortBox){
+        els.shortBox.classList.remove("hide");
+        bindOnce(els.btnShortSend,"click", ()=> submit((els.shortInput?.value||"").trim()));
+      }
+    }
+  }
+}
+
 function renderResponses(list){
   if(MODE!=="admin") return;
   const r=window.__room||{}; const idx=r.currentIndex; const q=r.questions?.[idx];
 
-  // 칩(진행 현황)
   if(els.chips){
     els.chips.innerHTML="";
     list.forEach(s=>{
-      const a=s.answers?.[idx];
-      const chip=document.createElement("div");
-      let cls="wait";
-      if(a){ cls = a.correct ? "ok" : "no"; }
-      chip.className="chip "+cls;
-      chip.textContent=s.name||s.id;
-      els.chips.appendChild(chip);
+      const a=s.answers?.[idx]; const chip=document.createElement("div");
+      let cls="wait"; if(a){ cls=a.correct?'ok':'no'; }
+      chip.className="chip "+cls; chip.textContent=s.name||s.id; els.chips.appendChild(chip);
     });
   }
 
-  // 주관식 채점
   if(els.shortAnswers){
     els.shortAnswers.innerHTML="";
     if(q && q.type==='short'){
@@ -533,25 +553,21 @@ function renderResponses(list){
     }
   }
 
-  // 결과표 (관리자)
   if(els.resultsTable){
     const tbl=document.createElement("table");
     const thead=document.createElement("thead"), tr=document.createElement("tr");
     ["이름", ...(r.questions||[]).map((_,i)=>`Q${i+1}`), "점수"].forEach(h=>{ const th=document.createElement("th"); th.textContent=h; tr.appendChild(th); });
     thead.appendChild(tr); tbl.appendChild(thead);
     const tb=document.createElement("tbody");
-    // 점수 계산 후 순위 정렬
     const rows = list.map(s=>{
       let score=0; const cols=[];
       (r.questions||[]).forEach((q,i)=>{
         const a=s.answers?.[i];
         const cell = a ? (q.type==='mcq' ? (typeof a.value==='number'? a.value+1 : '-') : (a.value||'-')) : '-';
-        if(a?.correct) score++;
-        cols.push(cell);
+        if(a?.correct) score++; cols.push(cell);
       });
       return { name:s.name||s.id, cols, score };
     }).sort((a,b)=>b.score-a.score);
-
     rows.forEach(row=>{
       const tr=document.createElement("tr");
       const tdN=document.createElement("td"); tdN.textContent=row.name; tr.appendChild(tdN);
@@ -562,17 +578,6 @@ function renderResponses(list){
     tbl.appendChild(tb);
     els.resultsTable.innerHTML=""; els.resultsTable.appendChild(tbl);
   }
-}
-
-/***********************
- * Wait Overlay (학생)
- ***********************/
-function showWait(msg){
-  if(els.waitText) els.waitText.textContent = msg||"대기 중입니다…";
-  if(els.waitOverlay) els.waitOverlay.classList.remove("hide");
-}
-function hideWait(){
-  if(els.waitOverlay) els.waitOverlay.classList.add("hide");
 }
 
 /***********************
@@ -587,10 +592,8 @@ function buildStudentLink(){
     els.studentLink.value = url.toString();
   }
   if(els.qrCanvas && window.QRCode && els.studentLink?.value){
-    try{
-      // 크기 약간 작게(요청)
-      window.QRCode.toCanvas(els.qrCanvas, els.studentLink.value, { width:160 }, (err)=>{ if(err) console.warn(err); });
-    }catch(e){ console.warn("QR draw failed", e); }
+    try{ window.QRCode.toCanvas(els.qrCanvas, els.studentLink.value, { width:160 }, (err)=>{ if(err) console.warn(err); }); }
+    catch(e){ console.warn("QR draw failed", e); }
   }
 }
 
@@ -633,34 +636,28 @@ els.fileLoad?.addEventListener("change", async (e)=>{
 els.btnResetAll?.addEventListener("click", async ()=>{
   if(!roomId) return;
   if(!confirm("문항/옵션/결과를 모두 초기화하고 처음 상태로 돌립니다. 진행할까요?")) return;
-  // 룸 기본 상태로 리셋
   await setDoc(roomRef(roomId), {
     title:"새 세션", mode:"idle", currentIndex:-1, accept:false, reveal:false,
     policy:{ deviceOnce:true, nameOnce:false },
     options:{ bright:false, timerSec:0 },
     questions:[]
   }, { merge:false });
-  // 응답 초기화
   const snap=await getDocs(respCol(roomId));
-  const tasks=[];
-  snap.forEach(d=> tasks.push(setDoc(doc(respCol(roomId), d.id), { answers:{}, alive:true }, { merge:true })));
+  const tasks=[]; snap.forEach(d=> tasks.push(setDoc(doc(respCol(roomId), d.id), { answers:{}, alive:true }, { merge:true })));
   await Promise.all(tasks);
   alert("완전 초기화 완료");
 });
 
 /***********************
- * Events
+ * Tab & Buttons
  ***********************/
 els.btnConnect?.addEventListener("click", connect);
 els.btnLogout?.addEventListener("click", logout);
-
-// 탭 이동
 els.tabBuild?.addEventListener("click", ()=> showTab(els.tabBuild));
 els.tabOptions?.addEventListener("click", ()=> showTab(els.tabOptions));
 els.tabPresent?.addEventListener("click", ()=> showTab(els.tabPresent));
 els.tabResults?.addEventListener("click", ()=> showTab(els.tabResults));
 
-// 문항 만들기
 els.btnBuildForm?.addEventListener("click", ()=>{
   const n=Math.max(1,Math.min(20, parseInt(els.questionCount?.value,10)||3));
   if(els.builder){ els.builder.innerHTML=""; for(let i=0;i<n;i++) els.builder.appendChild(cardRow(i+1)); }
@@ -682,46 +679,35 @@ els.btnSaveQuiz?.addEventListener("click", async ()=>{
   await setDoc(roomRef(roomId), { title:payload.title, questions:payload.questions }, { merge:true });
   alert("문항 저장 완료!");
 });
-
 els.btnSaveOptions?.addEventListener("click", saveOptions);
 
-// 프레젠테이션 제어
 els.btnStart?.addEventListener("click", startQuiz);
 els.btnPrev?.addEventListener("click", ()=>step(-1));
 els.btnNext?.addEventListener("click", ()=>step(+1));
 els.btnEndAll?.addEventListener("click", finishAll);
-
-// 학생 접속/제출
-els.btnJoin?.addEventListener("click", join);
-els.btnShortSend?.addEventListener("click", ()=> submit((els.shortInput?.value||"").trim()));
-
-// 링크/QR
-els.btnCopyLink?.addEventListener("click", async ()=>{
-  if(!els.studentLink?.value) return;
-  await navigator.clipboard.writeText(els.studentLink.value);
-  els.btnCopyLink.textContent="복사됨"; setTimeout(()=> els.btnCopyLink.textContent="복사", 1200);
-});
-els.btnOpenStudent?.addEventListener("click", ()=> window.open(els.studentLink?.value||"#","_blank"));
 
 /***********************
  * Boot
  ***********************/
 (function boot(){
   loadLocal();
-  // 기본은 관리자 모드
+
+  // URL에 따라 역할 결정
   const url=new URL(location.href);
   const role=url.searchParams.get("role"); const rid=url.searchParams.get("room");
-
-  if(role==='student'){ MODE='student'; }
+  if(role==='student') MODE='student';
   setMode(MODE);
+
+  // 학생 UI가 없으면 동적 구성
+  if(MODE==='student'){ ensureStudentUI(); refreshEls(); }
+
+  // 이벤트(동적 생성된 버튼들도 바인딩)
+  bindOnce(els.btnJoin, "click", join);
+  bindOnce(els.btnShortSend, "click", ()=> submit((els.shortInput?.value||"").trim()));
 
   // 세션 자동 접속
   if(rid){ if(els.roomId) els.roomId.value=rid; connect(); }
   else if(roomId){ connect(); }
 
-  // 학생 모드 초기: 항상 이름 팝업(대기)
-  if(MODE==='student'){
-    // 이미 me.id가 있더라도 시작 전엔 대기 문구 유지
-    showWait("이름(번호)을 입력 후 참가를 누르세요.");
-  }
+  if(MODE==='student'){ showWait("이름(번호)을 입력 후 참가를 누르세요."); }
 })();
