@@ -15,12 +15,9 @@
   }
 })();
 
-/* ---------- Firestore 핸들 ---------- */
-const app = firebase.apps.length ? firebase.app() : firebase.initializeApp({
-  // 이미 index.html에서 초기화했다면 이 블록은 무시됩니다.
-  // 필요 시 project 설정을 여기에 둬도 됩니다.
-});
-const db = firebase.firestore();
+/* ---------- Firestore 핸들 (이미 초기화된 앱 사용) ---------- */
+const app = firebase.app();     // ← 여기! initializeApp 호출 없음
+const db  = firebase.firestore();
 
 /* ---------- 유틸: 안전한 DOM 참조 & 도우미 ---------- */
 const $id = (id) => document.getElementById(id) || null;
