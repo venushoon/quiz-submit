@@ -10,7 +10,7 @@
 
   <link rel="stylesheet" href="./app.css" />
 
-  <!-- QRCode (전역 QRCode 노출) -->
+  <!-- QRCode 먼저 로드(전역 QRCode) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 
   <!-- Firebase v9 (모듈) + Firestore: 전역에 db/FS 바인딩 -->
@@ -62,33 +62,16 @@
     </nav>
   </header>
 
-  <!-- 문항 -->
+  <!-- 문항 (불필요 가이드/샘플/업로드 UI 제거) -->
   <section id="panelBuild" class="panel">
-    <div class="card hint" id="buildGuide">
-      <h3>수동 출제 가이드</h3>
-      <ol>
-        <li>객관식: <code>문항,보기1,보기2,보기3,보기4,정답번호</code></li>
-        <li>주관식: <code>문항,주관식,정답텍스트</code></li>
-        <li>예) <code>가장 큰 행성?,지구,목성,화성,금성,2</code></li>
-        <li>문항 옆 <b>이미지</b> 업로드로 그림 포함 가능</li>
-      </ol>
-    </div>
-
     <div class="card">
       <div class="row wrap gap">
         <input id="quizTitle" class="input xl grow" placeholder="퀴즈 제목" />
         <input id="questionCount" class="input sm" type="number" min="1" max="50" value="3" />
         <button id="btnBuildForm"   class="btn">빈폼</button>
-        <button id="btnLoadSample"  class="btn">샘플</button>
         <button id="btnSaveQuiz"    class="btn success">저장</button>
-
-        <!-- 수동 업로드/양식 -->
-        <input  id="fileUploadTxt" type="file" accept=".txt,.csv" class="hide" />
-        <button id="btnUploadTxt"        class="btn">업로드</button>
-        <button id="btnDownloadTemplate" class="btn ghost">샘플양식</button>
       </div>
     </div>
-
     <div id="builder" class="builder"></div>
   </section>
 
