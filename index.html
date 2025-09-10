@@ -5,10 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>실시간 퀴즈</title>
 
-  <!-- 스타일시트 -->
   <link rel="stylesheet" href="app.css" />
 
-  <!-- QR 코드 생성기 (전역 객체 QRCode 등록) -->
+  <!-- QR 코드 라이브러리 -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
 </head>
 <body>
@@ -41,10 +40,10 @@
       <div id="builder"></div>
       <div class="guide">
         <h3>수동 출제 가이드</h3>
-        <p>1. 객관식: 문항, 보기1~4, 정답번호(숫자)</p>
+        <p>1. 객관식: 문항, 보기1~4, 정답번호</p>
         <p>2. 주관식: 문항, 주관식, 정답텍스트</p>
         <p>3. 예) 가장 큰 행성?, 지구, 목성, 화성, 금성, 2</p>
-        <p>4. 문항 옆 <b>이미지 업로드</b>로 그림 포함 가능</p>
+        <p>4. 문항 옆 <b>이미지 업로드</b> 가능</p>
       </div>
     </section>
 
@@ -69,11 +68,11 @@
         <input id="studentLink" readonly />
         <button id="btnCopyLink">복사</button>
         <button id="btnOpenStudent">열기</button>
-        <p>※ 옵션 저장 후 QR/링크가 갱신됩니다.</p>
+        <p>※ 옵션 저장 후 QR/링크 갱신</p>
       </div>
     </section>
 
-    <!-- 프레젠테이션 탭 -->
+    <!-- 프레젠테이션 -->
     <section id="panelPresent" class="panel hide">
       <div id="presentControls">
         <button id="btnStart">시작</button>
@@ -89,28 +88,21 @@
       <div id="pQ">시작 버튼을 누르면 문항이 제시됩니다.</div>
       <div id="pOpts"></div>
       <div id="pImg"></div>
-      <div id="presentStats">
-        <span class="dot blue"></span> 참가
-        <span class="dot yellow"></span> 제출
-        <span class="dot green"></span> 정답
-        <span class="dot red"></span> 오답
-      </div>
     </section>
 
-    <!-- 결과 탭 -->
+    <!-- 결과 -->
     <section id="panelResults" class="panel hide">
       <button id="btnExportCSV">CSV 내보내기</button>
       <button id="btnLeaderboard">리더보드 전용 화면</button>
       <div id="resultsTable"></div>
     </section>
 
-    <!-- 학생 모드 (별도 뷰) -->
+    <!-- 학생 모드 -->
     <section id="studentPanel" class="panel hide">
       <div id="sState">세션 접속 필요</div>
       <input id="studentName" placeholder="이름 또는 번호를 입력하세요!" />
       <button id="btnJoin">참가</button>
       <div id="sQArea" class="hide">
-        <div id="badgeType"></div>
         <div id="sQText"></div>
         <div id="sQImg"></div>
         <div id="mcqBox"></div>
@@ -123,11 +115,11 @@
     </section>
   </main>
 
-  <!-- Firebase SDKs -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-  <!-- 내 JS -->
+  <!-- App -->
   <script src="app.js"></script>
 </body>
 </html>
