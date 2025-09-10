@@ -1,6 +1,8 @@
 /* =========================
-   app.js — 최종 완성본
-   (Firebase compat + 기존 id/class 전제)
+   app.js — 최종 완성본 (흐름 수정판)
+   - Firebase compat 스크립트로 window.db, window.FS 존재 전제
+   - 관리자: 프레젠테이션 탭에서 [시작] → Q1 즉시 표시
+   - 학생: 링크/QR 진입 시 항상 이름 입력 모달부터
    ========================= */
 
 (function () {
@@ -20,7 +22,7 @@
   const pad = (n) => String(n).padStart(2, "0");
   const warnMissing = (name, el) => { if (!el) console.warn("[warn] missing element:", name); };
 
-  // ---- Elements (필요 요소 없으면 경고만) ---------------------------------
+  // ---- Elements ------------------------------------------------------------
   const els = {
     // 상단/탭
     roomId: $("#roomId"), btnConnect: $("#btnConnect"), btnSignOut: $("#btnSignOut"), roomStatus: $("#roomStatus"),
@@ -60,15 +62,13 @@
   let MODE = "admin";          // "admin" | "student"
   let roomId = "";
   let me = { id: null, name: "" };
-
   let unsubRoom = null, unsubResp = null;
   let timerHandle = null;
 
-  // Firestore refs
   const roomRef = (id) => doc(window.db, "rooms", id);
   const respCol = (id) => collection(window.db, "rooms", id, "responses");
 
-  // ---- UI Mode / Tabs ------------------------------------------------------
+  // ---- Tabs / Mode ---------------------------------------------------------
   function showTab(name) {
     [els.pBuild, els.pOptions, els.pPresent, els.pResults].forEach(p => p?.classList.add("hide"));
     ({ build: els.pBuild, options: els.pOptions, present: els.pPresent, results: els.pResults }[name])?.classList.remove("hide");
@@ -80,20 +80,21 @@
   function setMode(m) {
     MODE = m;
     if (m === "admin") {
+      // 관리자 요소 보이기
       $$(".admin-only").forEach(n => n.classList.remove("hide"));
       els.studentAccess?.classList.add("hide");
       showTab("build");
     } else {
-      // 학생 모드: 관리자 UI 숨김
+      // 학생: 관리자 UI 전부 숨기기 + 이름 모달 무조건 보이기
       $$(".admin-only").forEach(n => n.classList.add("hide"));
       els.studentAccess?.classList.remove("hide");
-      els.joinModal?.classList.remove("hide");
+      els.joinModal?.classList.remove("hide");       // 항상 이름부터
       els.sWrap?.classList.add("hide");
       els.sDone?.classList.add("hide");
     }
   }
 
-  // ---- Firestore Ops -------------------------------------------------------
+  // ---- Firestore ops -------------------------------------------------------
   async function ensureRoom(id) {
     const snap = await getDoc(roomRef(id));
     if (!snap.exists()) {
@@ -111,7 +112,12 @@
 
   function listenRoom(id) {
     if (unsubRoom) unsubRoom();
-    unsubRoom = onSnapshot(roomRef(id), (snap) => { if (snap.exists()) renderRoom(snap.data()); });
+    unsubRoom = onSnapshot(roomRef(id), (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data();
+      window.__cachedRoom = data;      // 통계 계산용
+      renderRoom(data);
+    });
   }
 
   function listenResponses(id) {
@@ -123,7 +129,7 @@
     });
   }
 
-  // ---- Connect / SignOut / StudentLink ------------------------------------
+  // ---- Connect / Sign out / Student link ----------------------------------
   async function connect() {
     if (!els.roomId?.value?.trim()) { alert("세션 코드를 입력하세요."); return; }
     roomId = els.roomId.value.trim();
@@ -215,14 +221,13 @@
   // ---- Flow / Timer --------------------------------------------------------
   async function startQuiz() {
     if (!roomId) return;
+    // 프레젠테이션 탭에서 [시작] → 즉시 Q1 표시되도록 강제
     await updateDoc(roomRef(roomId), { mode: "active", currentIndex: 0, accept: true });
+    showTab("present");
   }
-  async function prev() {
-    await step(-1);
-  }
-  async function next() {
-    await step(+1);
-  }
+  async function prev() { await step(-1); }
+  async function next() { await step(+1); }
+
   async function step(delta) {
     await runTransaction(window.db, async (tx) => {
       const snap = await tx.get(roomRef(roomId));
@@ -235,10 +240,12 @@
       nextIdx = Math.max(0, nextIdx);
       tx.update(roomRef(roomId), { currentIndex: nextIdx, accept: true, mode: "active" });
     });
+    showTab("present");
   }
   async function finishAll() {
     if (!roomId) return;
     await updateDoc(roomRef(roomId), { mode: "ended", accept: false });
+    showTab("results");
   }
 
   function startTimer(sec) {
@@ -264,7 +271,11 @@
     me = { id: localStorage.getItem("quiz.device") || Math.random().toString(36).slice(2, 10), name };
     localStorage.setItem("quiz.device", me.id);
     await setDoc(doc(respCol(roomId), me.id), { name, joinedAt: serverTimestamp(), answers: {}, alive: true }, { merge: true });
+
+    // 참가 후에는 대기 문구만 보이도록
     els.joinModal?.classList.add("hide");
+    els.sDone?.classList.add("hide");
+    els.sWrap?.classList.add("hide");
     els.sState && (els.sState.textContent = "참가 완료! 시작을 기다려 주세요.");
   }
 
@@ -288,9 +299,8 @@
       if (q.answerText) correct = (norm(value) === norm(q.answerText));
     }
     await setDoc(ref, { name: me.name || "익명", [`answers.${idx}`]: { value, correct: (correct === true) } }, { merge: true });
-    // 학생 화면에서 제출 완료 표기
-    els.sWrap && (els.sWrap.classList.add("hide"));
-    els.sDone && (els.sDone.classList.remove("hide"));
+    els.sWrap?.classList.add("hide");
+    els.sDone?.classList.remove("hide");
   }
 
   async function grade(uid, qIndex, ok) {
@@ -310,26 +320,25 @@
     // Admin Present
     if (MODE === "admin") {
       els.pTitle && (els.pTitle.textContent = r.title || roomId);
-      if (!els.pQ || !els.pOpts) return;
-      if (r.mode !== "active" || idx < 0) {
-        els.pQ.textContent = "시작 버튼을 누르면 문항이 제시됩니다.";
-        els.pOpts.innerHTML = "";
-      } else {
-        const q = r.questions[idx];
-        els.pQ.textContent = q.text || "-";
-        els.pOpts.innerHTML = "";
-        if (q.image) {
-          if (els.pImg) { els.pImg.src = q.image; els.pImg.classList.remove("hide"); }
-        } else {
+      if (els.pQ && els.pOpts) {
+        if (r.mode !== "active" || idx < 0) {
+          els.pQ.textContent = "시작 버튼을 누르면 문항이 제시됩니다.";
+          els.pOpts.innerHTML = "";
           els.pImg?.classList.add("hide");
-        }
-        if (q.type === "mcq") {
-          q.options.forEach((t, i) => {
-            const d = document.createElement("div");
-            d.className = "popt";
-            d.textContent = `${i + 1}. ${t}`;
-            els.pOpts.appendChild(d);
-          });
+        } else {
+          const q = r.questions[idx];
+          els.pQ.textContent = q?.text || "-";
+          els.pOpts.innerHTML = "";
+          if (q?.image) { els.pImg && (els.pImg.src = q.image, els.pImg.classList.remove("hide")); }
+          else els.pImg?.classList.add("hide");
+          if (q?.type === "mcq") {
+            q.options.forEach((t, i) => {
+              const d = document.createElement("div");
+              d.className = "popt";
+              d.textContent = `${i + 1}. ${t}`;
+              els.pOpts.appendChild(d);
+            });
+          }
         }
       }
     }
@@ -342,8 +351,11 @@
         return;
       }
       if (r.mode !== "active" || idx < 0) {
+        // 항상 대기
         els.sWrap?.classList.add("hide");
         els.sDone?.classList.add("hide");
+        els.joinModal?.classList.add("hide"); // 참가 이후
+        els.sState && (els.sState.textContent = "참가 완료! 시작을 기다려 주세요.");
         return;
       }
       const q = r.questions[idx];
@@ -376,11 +388,10 @@
 
   function renderResponses(list) {
     if (MODE !== "admin") return;
-    const snapRoom = window.__lastRoomSnap; // 사용 안함(미니멈 구현)
-
-    // 칩 통계
     const r = window.__cachedRoom || {};
     const idx = r.currentIndex;
+
+    // 칩 통계
     let join = list.length, submit = 0, correct = 0, wrong = 0;
     list.forEach(s => {
       const a = s.answers?.[idx];
@@ -421,7 +432,7 @@
     els.resultsTable.innerHTML = ""; els.resultsTable.appendChild(tbl);
   }
 
-  // ---- Options Save / Export / Reset --------------------------------------
+  // ---- Options / Export / Reset -------------------------------------------
   async function saveOptions() {
     if (!roomId) return alert("세션에 먼저 접속하세요.");
     const payload = {
@@ -538,14 +549,23 @@
 
   // ---- Boot / Deep link (?role=student&room=xxx) --------------------------
   (function boot() {
-    // 기본은 관리자
+    // 기본 관리자 + 문항 탭
     setMode("admin");
     showTab("build");
 
     const url = new URL(location.href);
     const role = url.searchParams.get("role");
     const rid = url.searchParams.get("room");
-    if (role === "student") setMode("student");
+
+    // 학생 링크로 들어오면: 학생 모드 + 이름 입력부터
+    if (role === "student") {
+      setMode("student");
+      els.joinModal?.classList.remove("hide");   // 무조건 이름부터
+      els.sWrap?.classList.add("hide");
+      els.sDone?.classList.add("hide");
+    }
+
+    // room 파라미터가 있으면 즉시 접속
     if (rid) { els.roomId && (els.roomId.value = rid); connect(); }
   })();
 })();
