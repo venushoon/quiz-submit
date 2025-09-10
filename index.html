@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>실시간 퀴즈 (Live Quiz)</title>
 
-  <!-- 파비콘 404 제거 -->
+  <!-- 404 파비콘 경고 제거 -->
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%235866ff'/%3E%3Ctext x='32' y='40' text-anchor='middle' font-size='28' fill='white'%3EL%3C/text%3E%3C/svg%3E"/>
 
   <link rel="stylesheet" href="./app.css" />
 
-  <!-- QRCode 먼저 로드(전역 QRCode) -->
+  <!-- QRCode (전역 QRCode 객체) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 
-  <!-- Firebase v9 (모듈) + Firestore: 전역에 db/FS 바인딩 -->
+  <!-- Firebase v9 (모듈) + Firestore : 전역 window.db / window.FS 바인딩 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import {
@@ -21,7 +21,6 @@
       onSnapshot, updateDoc, runTransaction, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-    // 프로젝트 설정
     const firebaseConfig = {
       apiKey: "AIzaSyCClNc95ykYCudmLHTPgpewZ60bZ8zukbo",
       authDomain: "live-quiz-a14d1.firebaseapp.com",
@@ -31,7 +30,7 @@
     const app = initializeApp(firebaseConfig);
     const db  = getFirestore(app);
 
-    // app.js 모듈이 재사용할 수 있도록 전역 바인딩
+    // app.js에서 쉽게 쓰도록 전역 바인딩
     window.db = db;
     window.FS = {
       doc, collection, setDoc, getDoc, getDocs,
@@ -39,14 +38,14 @@
     };
   </script>
 
-  <!-- 메인 앱 (반드시 모듈로 로드) -->
+  <!-- 메인 앱 (모듈) -->
   <script type="module" src="./app.js"></script>
 </head>
 <body>
   <header class="topbar">
     <div class="brand"><span class="live-dot" id="liveDot"></span><strong>실시간 퀴즈</strong></div>
 
-    <!-- 관리자 전용 세션/탭 -->
+    <!-- 관리자 전용 세션 입력 / 탭 -->
     <div class="session admin-only">
       <input id="roomId" class="input" placeholder="클래스(세션) 입력" />
       <button id="btnConnect"  class="btn primary">접속</button>
@@ -62,20 +61,27 @@
     </nav>
   </header>
 
-  <!-- 문항 (불필요 가이드/샘플/업로드 UI 제거) -->
+  <!-- 문항 탭 -->
   <section id="panelBuild" class="panel">
     <div class="card">
       <div class="row wrap gap">
         <input id="quizTitle" class="input xl grow" placeholder="퀴즈 제목" />
         <input id="questionCount" class="input sm" type="number" min="1" max="50" value="3" />
         <button id="btnBuildForm"   class="btn">빈폼</button>
+        <button id="btnLoadSample"  class="btn">샘플</button>
         <button id="btnSaveQuiz"    class="btn success">저장</button>
+
+        <!-- txt/csv 업로드 + 샘플 양식 -->
+        <input  id="fileUploadTxt" type="file" accept=".txt,.csv" class="hide" />
+        <button id="btnUploadTxt"        class="btn">업로드</button>
+        <button id="btnDownloadTemplate" class="btn ghost">샘플양식</button>
       </div>
     </div>
+
     <div id="builder" class="builder"></div>
   </section>
 
-  <!-- 옵션 -->
+  <!-- 옵션 탭 -->
   <section id="panelOptions" class="panel hide">
     <div class="grid">
       <div class="card">
@@ -112,7 +118,7 @@
     </div>
   </section>
 
-  <!-- 프레젠테이션 -->
+  <!-- 프레젠테이션 탭 -->
   <section id="panelPresent" class="panel hide">
     <div class="card">
       <div class="row wrap gap">
@@ -140,7 +146,7 @@
     </div>
   </section>
 
-  <!-- 결과 -->
+  <!-- 결과 탭 -->
   <section id="panelResults" class="panel hide">
     <div class="row wrap gap">
       <button id="btnExportCSV" class="btn">CSV 내보내기</button>
@@ -149,7 +155,7 @@
     <div id="resultsTable" class="card"></div>
   </section>
 
-  <!-- 학생 전용 화면(관리자에겐 숨김) -->
+  <!-- 학생 전용 화면 (관리자에겐 숨김) -->
   <section id="studentAccess" class="panel hide">
     <div id="joinModal" class="card">
       <h3 id="sState">세션 접속 필요</h3>
