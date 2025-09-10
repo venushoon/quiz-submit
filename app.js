@@ -1,4 +1,6 @@
 // app.js (모듈) — Firebase 모듈은 index.html에서 window.db / window.FS 로 노출됨
+// 참고: index.html head에서 Firebase/QRCode를 미리 로드합니다.
+/* global window */
 const { doc, collection, setDoc, getDoc, getDocs,
         onSnapshot, updateDoc, runTransaction, serverTimestamp } = window.FS;
 
@@ -18,8 +20,9 @@ const els = {
 
   // 문항 빌더
   quizTitle: $("#quizTitle"), questionCount: $("#questionCount"), btnBuildForm: $("#btnBuildForm"),
-  btnSaveQuiz: $("#btnSaveQuiz"),
-  builder: $("#builder"),
+  btnLoadSample: $("#btnLoadSample"), btnSaveQuiz: $("#btnSaveQuiz"),
+  builder: $("#builder"), btnUploadTxt: $("#btnUploadTxt"), fileUploadTxt: $("#fileUploadTxt"),
+  btnDownloadTemplate: $("#btnDownloadTemplate"),
 
   // 옵션
   polDevice: $("#polDevice"), polName: $("#polName"), chkAccept: $("#chkAccept"), chkReveal: $("#chkReveal"), chkBright: $("#chkBright"),
@@ -54,33 +57,37 @@ const roomRef = (id)=>doc(window.db,"rooms",id);
 const respCol = (id)=>collection(window.db,"rooms",id,"responses");
 const pad = n=>String(n).padStart(2,"0");
 
+function heartbeatOnline(isOn){ if(els.liveDot) els.liveDot.style.background = isOn? "#f43" : "#555"; }
 function saveLocal(){ localStorage.setItem("quiz.live", JSON.stringify({ roomId, MODE, me })); }
 function loadLocal(){
   try{
     const d=JSON.parse(localStorage.getItem("quiz.live")||"{}");
     roomId=d.roomId||""; MODE=d.MODE||"admin"; me=d.me||{id:null,name:""};
-    if(roomId) els.roomId.value=roomId;
+    if(els.roomId && roomId) els.roomId.value=roomId;
   }catch{}
 }
 
-// ------------ UI 표시 제어 --------------
 function showTab(name){
   const map = { build:els.pBuild, options:els.pOptions, present:els.pPresent, results:els.pResults };
-  Object.values(map).forEach(p=>p.classList.add("hide"));
+  Object.values(map).forEach(p=>p?.classList.add("hide"));
   map[name]?.classList.remove("hide");
 
-  [els.tabBuild,els.tabOptions,els.tabPresent,els.tabResults].forEach(t=>t.classList.remove("active"));
+  [els.tabBuild,els.tabOptions,els.tabPresent,els.tabResults].forEach(t=>t?.classList.remove("active"));
   ({build:els.tabBuild, options:els.tabOptions, present:els.tabPresent, results:els.tabResults}[name])?.classList.add("active");
 }
 
 function setMode(m){
   MODE=m;
-  $$(".admin-only").forEach(n=>n.classList.toggle("hide", m!=="admin"));
-  els.studentAccess.classList.toggle("hide", m!=="student");
+  // 관리자 전용 UI 보이기/숨기기
+  $$(".admin-only").forEach(n=> n.classList.toggle("hide", m!=="admin"));
+  // 학생 전용 루트
+  els.studentAccess?.classList.toggle("hide", m!=="student");
+
+  // 관리자면 기본 탭을 '문항'으로 고정
   if(m==="admin") showTab("build");
 }
 
-function heartbeatOnline(isOn){ if(els.liveDot) els.liveDot.style.background = isOn? "#f43" : "#555"; }
+function scrollReset(){ window.scrollTo({ top:0, behavior:"instant" }); }
 
 // ------------ Firestore 리스너 --------------
 function listenRoom(id){
@@ -112,34 +119,46 @@ async function ensureRoom(id){
 }
 
 async function connect(){
-  const id=(els.roomId.value||"").trim();
+  const id=(els.roomId?.value||"").trim();
   if(!id) return alert("세션 코드를 입력하세요.");
   roomId=id;
   await ensureRoom(roomId);
   listenRoom(roomId);
   listenResponses(roomId);
-  els.roomStatus.textContent=`세션: ${roomId} · 온라인`;
-  els.btnConnect.disabled=true; els.roomId.disabled=true; els.btnSignOut.classList.remove("hide");
+  if(els.roomStatus) els.roomStatus.textContent=`세션: ${roomId} · 온라인`;
+  els.btnConnect && (els.btnConnect.disabled=true);
+  els.roomId && (els.roomId.disabled=true);
+  els.btnSignOut && els.btnSignOut.classList.remove("hide");
   buildStudentLink();
   saveLocal(); heartbeatOnline(true);
+  // 접속 직후 관리자에선 항상 '문항' 탭이 먼저 보이도록
+  if(MODE==='admin') { showTab('build'); scrollReset(); }
 }
 
 function signOut(){
   if(unsubRoom) unsubRoom(); if(unsubResp) unsubResp();
-  roomId=""; els.roomId.value=""; els.roomId.disabled=false;
-  els.btnConnect.disabled=false; els.btnSignOut.classList.add("hide");
-  els.roomStatus.textContent="세션: - · 오프라인"; heartbeatOnline(false);
-  showTab("build");
+  roomId=""; if(els.roomId){ els.roomId.value=""; els.roomId.disabled=false; }
+  if(els.btnConnect) els.btnConnect.disabled=false;
+  els.btnSignOut && els.btnSignOut.classList.add("hide");
+  if(els.roomStatus) els.roomStatus.textContent="세션: - · 오프라인"; heartbeatOnline(false);
+  if(MODE==='admin') showTab("build");
   saveLocal();
 }
 
 function autoReconnect(){
   loadLocal();
-  setMode(MODE||"admin");
-  if(roomId) connect();
+  // URL 파라미터 우선
+  const url=new URL(location.href);
+  const role=url.searchParams.get("role"); const rid=url.searchParams.get("room");
+  if(role==='student') MODE='student'; else MODE='admin';
+  setMode(MODE);
+
+  if(rid){ if(els.roomId) els.roomId.value=rid; connect(); }
+  else if(roomId){ connect(); }
+  else { heartbeatOnline(false); if(MODE==='admin') showTab('build'); }
 }
 
-// ------------ 빌더(간결: 빈폼/저장만) --------------
+// ------------ 빌더 --------------
 function qCard(no,q){
   const wrap=document.createElement("div");
   wrap.className="qcard";
@@ -151,7 +170,7 @@ function qCard(no,q){
     </div>
     <div class="row wrap mt">
       <input class="input grow qtext" placeholder="문항 내용" value="${q?.text||''}">
-      <input class="input sm qimg" type="file" accept="image/*">
+      <input class="input sm qimg" type="file" accept="image/*" title="이미지">
     </div>
     <div class="mcq ${q?.type==='short'?'hide':''} mt">
       <div class="row wrap">
@@ -183,7 +202,7 @@ function gatherBuilder(){
     const imgF = c.querySelector(".qimg").files?.[0]||null;
     if(!text) return null;
     let payload={ type, text };
-    if(imgF){ payload.image=URL.createObjectURL(imgF); }
+    if(imgF){ payload.image=URL.createObjectURL(imgF); } // 미리보기(정식 배포는 Storage 권장)
     if(type==='mcq'){
       const opts=$$(".opt",c).map(i=>i.value.trim());
       const ans = Math.max(0,Math.min(opts.length-1,(parseInt(c.querySelector(".ansIndex").value,10)||1)-1));
@@ -198,62 +217,64 @@ function gatherBuilder(){
 
 // ------------ 옵션 저장/QR --------------
 function buildStudentLink(){
-  if(!roomId) return;
+  if(!roomId || !els.studentLink) return;
   const url=new URL(location.href);
   url.searchParams.set("role","student");
   url.searchParams.set("room", roomId);
   els.studentLink.value=url.toString();
 
   if(window.QRCode && els.qrCanvas){
-    try{ window.QRCode.toCanvas(els.qrCanvas, url.toString(), { width:140 }); }catch(e){ console.warn(e); }
+    try{ window.QRCode.toCanvas(els.qrCanvas, url.toString(), { width:120 }); }catch(e){ console.warn(e); }
   }
 }
 
 // ------------ 진행 & 타이머 --------------
 async function startQuiz(){
   await updateDoc(roomRef(roomId), { mode:"active", currentIndex:0, accept:true });
+  showTab('present');
 }
 async function step(delta){
   await runTransaction(window.db, async (tx)=>{
-    const snap=await tx.get(roomRef(roomId));
+    const ref=roomRef(roomId);
+    const snap=await tx.get(ref);
     const r=snap.data(); const total=(r.questions?.length||0);
     let next=(r.currentIndex??-1)+delta;
     if(next>=total){
-      tx.update(roomRef(roomId), { mode:"ended", accept:false });
+      tx.update(ref, { mode:"ended", accept:false });
       return;
     }
     next=Math.max(0,next);
-    tx.update(roomRef(roomId), { currentIndex: next, accept:true });
+    tx.update(ref, { currentIndex: next, accept:true });
   });
 }
-async function finishAll(){ await updateDoc(roomRef(roomId), { mode:"ended", accept:false }); }
+async function finishAll(){
+  await updateDoc(roomRef(roomId), { mode:"ended", accept:false });
+  showTab('results');
+}
 
 function startTimer(sec){
   stopTimer();
   const end=Date.now()+sec*1000;
   timerHandle=setInterval(()=> {
     const remain=Math.max(0, Math.floor((end-Date.now())/1000));
-    els.leftSec.textContent=`${pad(Math.floor(remain/60))}:${pad(remain%60)}`;
+    if(els.leftSec) els.leftSec.textContent=`${pad(Math.floor(remain/60))}:${pad(remain%60)}`;
     if(remain<=0){ stopTimer(); updateDoc(roomRef(roomId), { accept:false }); setTimeout(()=>step(+1),400); }
   }, 250);
 }
-function stopTimer(){ if(timerHandle){ clearInterval(timerHandle); timerHandle=null; } els.leftSec.textContent="00:00"; }
+function stopTimer(){ if(timerHandle){ clearInterval(timerHandle); timerHandle=null; } if(els.leftSec) els.leftSec.textContent="00:00"; }
 
 // ------------ 제출/채점 --------------
 async function join(){
   if(!roomId) return alert("세션에 먼저 접속하세요.");
-  const name=(els.joinName.value||"").trim(); if(!name) return alert("이름을 입력하세요.");
+  const name=(els.joinName?.value||"").trim(); if(!name) return alert("이름을 입력하세요.");
   me = { id: localStorage.getItem("quiz.device") || Math.random().toString(36).slice(2,10), name };
   localStorage.setItem("quiz.device", me.id);
   await setDoc(doc(respCol(roomId), me.id), { name, joinedAt:serverTimestamp(), answers:{}, alive:true }, { merge:true });
-  // 참가 후에는 입력창 잠그고 '대기' 모드 유지
-  els.joinName.disabled = true;
-  els.btnJoinGo.disabled = true;
-  els.sState.textContent = "참가 완료! 교사가 시작하면 1번 문항이 표시됩니다.";
+  els.joinModal?.classList.add("hide");
+  els.sWrap?.classList.remove("hide");
+  if(els.sState) els.sState.textContent="참가 완료! 제출 버튼을 눌러주세요. 교사가 시작하면 1번 문항이 표시됩니다.";
   saveLocal();
 }
-
-// value: number(객관식 index) | string(주관식)
 async function submit(value){
   const r=window.__room; if(!r?.accept) return alert("지금은 제출할 수 없습니다.");
   const idx=r.currentIndex; const q=r.questions?.[idx]; if(!q) return;
@@ -281,19 +302,18 @@ function renderRoom(r){
   const idx=r.currentIndex; const total=r.questions?.length||0;
   if(els.nowQuestion) els.nowQuestion.textContent = (idx>=0)? `Q${idx+1}/${total}` : "-";
 
-  // 프레젠테이션
+  // 프레젠테이션(관리자용)
   if(els.pTitle) els.pTitle.textContent = r.title||roomId;
   if(els.pImg){ els.pImg.classList.add("hide"); els.pImg.src=""; }
-
-  if(els.pQ && els.pOpts){
-    if(idx==null || idx<0 || r.mode!=="active"){
-      els.pQ.textContent="시작 버튼을 누르면 문항이 제시됩니다.";
+  if(!r.mode || r.mode!=="active" || idx<0){
+    if(els.pQ) els.pQ.textContent="시작 버튼을 누르면 문항이 제시됩니다.";
+    if(els.pOpts) els.pOpts.innerHTML="";
+  }else{
+    const q=r.questions[idx];
+    if(els.pQ) els.pQ.textContent=q.text;
+    if(q.image && els.pImg){ els.pImg.src=q.image; els.pImg.classList.remove("hide"); }
+    if(els.pOpts){
       els.pOpts.innerHTML="";
-    }else{
-      const q=r.questions[idx];
-      els.pQ.textContent=q.text;
-      els.pOpts.innerHTML="";
-      if(q.image && els.pImg){ els.pImg.src=q.image; els.pImg.classList.remove("hide"); }
       if(q.type==='mcq'){
         q.options.forEach((t,i)=>{ const d=document.createElement("div"); d.className="popt"; d.textContent=`${i+1}. ${t}`; els.pOpts.appendChild(d); });
       }else{
@@ -302,60 +322,45 @@ function renderRoom(r){
     }
   }
 
-  // 학생 화면
+  // 학생 화면 렌더
   if(MODE==='student'){
-    const joined = !!me.id;
     if(r.mode==='ended'){
-      els.joinModal?.classList.add("hide");
+      els.sWrap?.classList.add("hide"); els.sDone?.classList.remove("hide");
+      return;
+    }
+    if(!r.mode || r.mode!=='active' || idx<0){
+      // 항상 대기/참가 모달
+      els.sDone?.classList.add("hide");
       els.sWrap?.classList.add("hide");
-      els.sDone?.classList.remove("hide");
-      return;
-    }
-    if(!joined){
-      // 아직 참가 전: 입력 활성
       els.joinModal?.classList.remove("hide");
-      if(els.sWrap) els.sWrap.classList.add("hide");
-      if(els.sDone) els.sDone.classList.add("hide");
-      if(els.joinName){ els.joinName.disabled=false; els.joinName.value=""; }
-      if(els.btnJoinGo) els.btnJoinGo.disabled=false;
-      if(els.sState) els.sState.textContent="이름 또는 번호를 입력하세요!";
-      return;
-    }
-    // 참가했지만 아직 시작 전
-    if(r.mode!=='active' || idx<0){
-      els.joinModal?.classList.remove("hide");
-      if(els.sWrap) els.sWrap.classList.add("hide");
-      if(els.sDone) els.sDone.classList.add("hide");
-      if(els.joinName) els.joinName.disabled=true;
-      if(els.btnJoinGo) els.btnJoinGo.disabled=true;
-      if(els.sState) els.sState.textContent="참가 완료! 교사가 시작하면 1번 문항이 표시됩니다.";
+      if(els.sState) els.sState.textContent="참가 완료! 제출 버튼을 눌러주세요. 교사가 시작하면 1번 문항이 표시됩니다.";
       return;
     }
     // 문제 표기
     const q=r.questions[idx];
-    els.joinModal?.classList.add("hide");
-    els.sWrap?.classList.remove("hide");
-    els.sDone?.classList.add("hide");
-
+    els.joinModal?.classList.add("hide"); els.sWrap?.classList.remove("hide");
     if(els.sQTitle) els.sQTitle.textContent=q.text;
     if(els.sQImg){ els.sQImg.classList.add("hide"); els.sQImg.src=""; if(q.image){ els.sQImg.src=q.image; els.sQImg.classList.remove("hide"); } }
-    if(els.sOptBox) els.sOptBox.innerHTML="";
-    if(q.type==='mcq'){
-      q.options.forEach((opt,i)=>{
-        const b=document.createElement("button");
-        b.className="btn popt"; b.textContent=`${i+1}. ${opt}`; b.disabled=!r.accept;
-        b.onclick=()=>submit(i);
-        els.sOptBox.appendChild(b);
-      });
-      els.sShortWrap?.classList.add("hide");
-    }else{
-      els.sShortWrap?.classList.remove("hide");
-      if(els.btnShortSend) els.btnShortSend.disabled=!r.accept;
+    if(els.sOptBox){
+      els.sOptBox.innerHTML="";
+      if(q.type==='mcq'){
+        q.options.forEach((opt,i)=>{
+          const b=document.createElement("button");
+          b.className="btn popt"; b.textContent=`${i+1}. ${opt}`; b.disabled=!r.accept;
+          b.onclick=()=>submit(i);
+          els.sOptBox.appendChild(b);
+        });
+        els.sShortWrap?.classList.add("hide");
+      }else{
+        els.sShortWrap?.classList.remove("hide");
+        if(els.btnShortSend) els.btnShortSend.disabled=!r.accept;
+      }
     }
   }
 }
 
 function renderResponses(list){
+  // 칩 카운터
   const r=window.__room||{}; const idx=r.currentIndex;
   let joined=list.length, submitted=0, correct=0, wrong=0;
   list.forEach(s=>{
@@ -400,14 +405,45 @@ els.btnSignOut?.addEventListener("click", signOut);
 
 // 빌더
 els.btnBuildForm?.addEventListener("click", ()=>{
-  const n=Math.max(1,Math.min(50,parseInt(els.questionCount.value,10)||3));
-  els.builder.innerHTML=""; for(let i=0;i<n;i++) els.builder.appendChild(qCard(i+1));
+  const n=Math.max(1,Math.min(50,parseInt(els.questionCount?.value,10)||3));
+  if(els.builder){ els.builder.innerHTML=""; for(let i=0;i<n;i++) els.builder.appendChild(qCard(i+1)); }
+});
+els.btnLoadSample?.addEventListener("click", ()=>{
+  const S=[
+    {type:'mcq', text:'가장 큰 행성은?', options:['지구','목성','화성','금성'], answerIndex:1},
+    {type:'short', text:'물의 끓는점(°C)?', answerText:'100'},
+    {type:'mcq', text:'태양계 별명?', options:['Milky','Solar','Sunset','Lunar'], answerIndex:1},
+  ];
+  if(els.builder){ els.builder.innerHTML=""; S.forEach((q,i)=>els.builder.appendChild(qCard(i+1,q))); }
+  if(els.quizTitle) els.quizTitle.value="샘플 퀴즈";
+  if(els.questionCount) els.questionCount.value=S.length;
 });
 els.btnSaveQuiz?.addEventListener("click", async ()=>{
   if(!roomId) return alert("세션 접속 후 저장하세요.");
-  const payload=gatherBuilder(); if(!payload.questions.length) return alert("문항을 추가하세요.");
+  const payload=gatherBuilder();
   await setDoc(roomRef(roomId), { title:payload.title, questions:payload.questions }, { merge:true });
   alert("저장 완료!");
+});
+
+// 텍스트 업로드/양식
+els.btnUploadTxt?.addEventListener("click", ()=> els.fileUploadTxt?.click());
+els.fileUploadTxt?.addEventListener("change", async (e)=>{
+  const f=e.target.files?.[0]; if(!f) return;
+  const txt=await f.text();
+  const lines=txt.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  const qs=lines.map(line=>{
+    const parts=line.split(",").map(s=>s.trim());
+    if(parts[1]==="주관식"){ return { type:"short", text:parts[0], answerText:parts[2]||"" }; }
+    const [text,o1,o2,o3,o4,ans]=parts; return { type:"mcq", text, options:[o1,o2,o3,o4], answerIndex:Math.max(0,(parseInt(ans,10)||1)-1) };
+  });
+  if(els.builder){ els.builder.innerHTML=""; qs.forEach((q,i)=>els.builder.appendChild(qCard(i+1,q))); }
+  if(els.quizTitle) els.quizTitle.value = els.quizTitle.value||"업로드 퀴즈";
+});
+els.btnDownloadTemplate?.addEventListener("click", ()=>{
+  const sample="가장 큰 행성?,지구,목성,화성,금성,2\n기체의 표준 상태에서 1몰의 부피는?,주관식,22.4L";
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([sample],{type:"text/plain"}));
+  a.download="quiz-template.txt"; a.click(); URL.revokeObjectURL(a.href);
 });
 
 // 옵션 저장/초기화
@@ -420,7 +456,7 @@ els.btnOptSave?.addEventListener("click", async ()=>{
     bright: !!els.chkBright?.checked,
     timer:  Math.max(5,Math.min(600,parseInt(els.timerSec?.value,10)||30))
   }, { merge:true });
-  buildStudentLink();
+  buildStudentLink(); // 저장 직후 QR/링크 즉시 갱신
   alert("저장 완료! (QR/링크 갱신)");
 });
 els.btnResetAll?.addEventListener("click", async ()=>{
@@ -438,6 +474,10 @@ els.btnStart?.addEventListener("click", startQuiz);
 els.btnPrev?.addEventListener("click", ()=>step(-1));
 els.btnNext?.addEventListener("click", ()=>step(+1));
 els.btnEndAll?.addEventListener("click", finishAll);
+
+// ‘제출 허용/공개’ 토글
+els.chkAccept?.addEventListener("change", ()=> roomId && updateDoc(roomRef(roomId), { accept: !!els.chkAccept.checked }));
+els.chkReveal?.addEventListener("change", ()=> roomId && updateDoc(roomRef(roomId), { reveal: !!els.chkReveal.checked }));
 
 // 학생 링크/QR
 els.btnCopyLink?.addEventListener("click", async ()=>{
@@ -474,9 +514,4 @@ els.btnShowMy?.addEventListener("click", async ()=>{
 });
 
 // 부팅
-(function boot(){
-  const url=new URL(location.href);
-  const role=url.searchParams.get("role"); const rid=url.searchParams.get("room");
-  if(role==='student'){ setMode("student"); } else { setMode("admin"); }
-  if(rid){ els.roomId.value=rid; connect(); } else { heartbeatOnline(false); }
-})();
+autoReconnect();
