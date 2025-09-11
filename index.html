@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>실시간 퀴즈 (Live Quiz)</title>
+  <title>실시간 퀴즈</title>
 
-  <!-- 파비콘 404 제거 -->
+  <!-- 404 파비콘 방지 -->
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%235866ff'/%3E%3Ctext x='32' y='40' text-anchor='middle' font-size='28' fill='white'%3EL%3C/text%3E%3C/svg%3E"/>
 
   <link rel="stylesheet" href="./app.css" />
 
-  <!-- QRCode (전역 QRCode 노출) -->
+  <!-- QRCode(전역) : QR → app.js 순으로 로드 -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 
-  <!-- Firebase v9 (모듈) + Firestore: 전역에 db/FS 바인딩 -->
+  <!-- Firebase v9 모듈: 먼저 로드 → window.db / window.FS 바인딩 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import {
@@ -21,29 +21,29 @@
       onSnapshot, updateDoc, runTransaction, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-    // 프로젝트 설정 (요청 주신 값)
+    // ✔ 본인 프로젝트 값으로 사용(이미 제공된 값 그대로 사용 가능)
     const firebaseConfig = {
       apiKey: "AIzaSyCClNc95ykYCudmLHTPgpewZ60bZ8zukbo",
       authDomain: "live-quiz-a14d1.firebaseapp.com",
       projectId:  "live-quiz-a14d1",
     };
-
     const app = initializeApp(firebaseConfig);
     const db  = getFirestore(app);
 
-    // app.js 모듈이 재사용할 수 있도록 전역 바인딩
+    // app.js가 전역에서 가져다 쓰도록 바인딩
     window.db = db;
-    window.FS = {
-      doc, collection, setDoc, getDoc, getDocs,
-      onSnapshot, updateDoc, runTransaction, serverTimestamp
-    };
+    window.FS = { doc, collection, setDoc, getDoc, getDocs,
+                  onSnapshot, updateDoc, runTransaction, serverTimestamp };
   </script>
+
+  <!-- 메인 앱 -->
+  <script type="module" src="./app.js"></script>
 </head>
 <body>
   <header class="topbar">
     <div class="brand"><span class="live-dot" id="liveDot"></span><strong>실시간 퀴즈</strong></div>
 
-    <!-- 관리자 전용 세션/탭 -->
+    <!-- 관리자 세션/탭 -->
     <div class="session admin-only">
       <input id="roomId" class="input" placeholder="클래스(세션) 입력" />
       <button id="btnConnect"  class="btn primary">접속</button>
@@ -52,16 +52,16 @@
     </div>
 
     <nav class="tabs admin-only">
-      <button id="tabBuild"   class="tab active" data-tab="build">① 문항</button>
-      <button id="tabOptions" class="tab"        data-tab="options">② 옵션</button>
-      <button id="tabPresent" class="tab"        data-tab="present">③ 프레젠테이션</button>
-      <button id="tabResults" class="tab"        data-tab="results">④ 결과</button>
+      <button id="tabBuild"   class="tab active">① 문항</button>
+      <button id="tabOptions" class="tab">② 옵션</button>
+      <button id="tabPresent" class="tab">③ 프레젠테이션</button>
+      <button id="tabResults" class="tab">④ 결과</button>
     </nav>
   </header>
 
   <!-- 문항 -->
   <section id="panelBuild" class="panel">
-    <div class="card hint" id="buildGuide">
+    <div class="card hint">
       <h3>수동 출제 가이드</h3>
       <ol>
         <li>객관식: <code>문항,보기1,보기2,보기3,보기4,정답번호</code></li>
@@ -79,7 +79,7 @@
         <button id="btnLoadSample"  class="btn">샘플</button>
         <button id="btnSaveQuiz"    class="btn success">저장</button>
 
-        <!-- 수동 업로드/양식 -->
+        <!-- 업로드/양식 -->
         <input  id="fileUploadTxt" type="file" accept=".txt,.csv" class="hide" />
         <button id="btnUploadTxt"        class="btn">업로드</button>
         <button id="btnDownloadTemplate" class="btn ghost">샘플양식</button>
@@ -163,7 +163,7 @@
     <div id="resultsTable" class="card"></div>
   </section>
 
-  <!-- 학생 전용 화면(관리자에겐 숨김) -->
+  <!-- 학생 전용 -->
   <section id="studentAccess" class="panel hide">
     <div id="joinModal" class="card">
       <h3 id="sState">세션 접속 필요</h3>
@@ -190,8 +190,5 @@
       <div id="myResult" class="mt"></div>
     </div>
   </section>
-
-  <!-- 메인 앱: 반드시 body 끝에서 로드 -->
-  <script type="module" src="./app.js"></script>
 </body>
 </html>
