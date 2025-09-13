@@ -549,7 +549,7 @@ function init(){
   }
 }
 
-// [수정] 앱 실행 전 필수 라이브러리를 자동으로 불러오는 함수
+// 앱 실행 전 필수 라이브러리를 자동으로 불러오는 함수
 async function startApp() {
   const loadScript = (url) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
