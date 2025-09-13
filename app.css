@@ -37,7 +37,8 @@ body.bright-mode .btn.green { color: #fff; }
 .muted{color:var(--muted);font-size:14px}
 
 .qtitle{font-size:22px;margin:8px 0 10px}
-.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0}
+/* [요청 2] 레이아웃 하단 정렬 */
+.opts{display:grid;grid-template-columns:1fr;gap:12px;margin:10px 0}
 .opts .popt,.opts .sopt{background:#152232;border:1px solid var(--line);border-radius:14px;padding:18px;font-size:18px;text-align:center;cursor:pointer; transition: all 0.2s ease;}
 body.bright-mode .opts .popt, body.bright-mode .opts .sopt { background: #f8f9fa; }
 .opts .sopt.active { outline: 2px solid #4aa8ff; background: #1f3147; }
@@ -67,4 +68,9 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.7); }
 .control-group { display: flex; gap: 0.5rem; }
 .timer-display { margin-left: auto; display:flex; gap: 1rem; align-items: center; color: var(--muted); }
 
+/* [요청 3] 학생 화면 가독성 개선 */
+#studentPanel .card { color: var(--text); }
 #sDone { text-align: center; }
+/* [요청 5] 참가자 명단 스타일 */
+#participantList { list-style-type: none; padding-left: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+#participantList li { background: var(--btn); padding: 8px 12px; border-radius: 8px; text-align: center; }
