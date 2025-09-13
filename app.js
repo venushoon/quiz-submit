@@ -438,28 +438,30 @@ function renderRoom(r) {
 
 function renderQuestionList(questions = []) {
     els.qList.innerHTML = "";
-    const allQuestions = [...editQuestions.reverse(), ...questions];
+    const allQuestions = [...editQuestions.slice().reverse(), ...questions];
     els.qList.style.display = allQuestions.length > 0 ? 'block' : 'none';
+    
     allQuestions.forEach((q, index) => {
         const item = CE("div", "item");
-        const questionIndex = questions.length - 1 - (index - editQuestions.length);
         item.innerHTML = `<span class="item-text">${q.type === 'mcq' ? '[객관식]' : '[주관식]'} ${q.text}</span>`;
         const deleteBtn = CE("button", "delete-btn");
         deleteBtn.textContent = "×";
         deleteBtn.onclick = (e) => {
             e.stopPropagation();
-            if (index < editQuestions.length) { 
-                editQuestions.splice(index, 1);
+            const isUnsaved = index < editQuestions.length;
+            if (isUnsaved) {
+                const originalIndex = editQuestions.length - 1 - index;
+                editQuestions.splice(originalIndex, 1);
                 renderQuestionList(questions);
             } else { 
-                deleteQuestion(questionIndex);
+                const savedQuestionIndex = index - editQuestions.length;
+                deleteQuestion(savedQuestionIndex);
             }
         };
         item.appendChild(deleteBtn);
         els.qList.appendChild(item);
     });
 }
-
 
 function renderSubmitButton(chosen) {
     els.sSubmitBox.innerHTML = "";
@@ -507,7 +509,7 @@ async function refreshResults() {
     
     els.resHead.innerHTML = `<tr><th>순위</th><th>이름</th>${Array.from({length: total}, (_, i) => `<th>Q${i+1}</th>`).join("")}<th>점수</th></tr>`;
 
-    const respSnap = await window.FS.getDocs(window.FS.collection(db, "rooms", ROOM, "responses"));
+    const respSnap = await window.FS.getDocs(window.FS.doc("rooms", ROOM, "responses"));
     const rows = [];
     respSnap.forEach(d => rows.push(d.data()));
     
@@ -579,7 +581,7 @@ async function refreshMyResult() {
 function listenForParticipants() {
     if (!ROOM) return;
     els.participantCard.classList.remove('hide');
-    const responsesRef = window.FS.collection(db, "rooms", ROOM, "responses");
+    const responsesRef = window.FS.doc("rooms", ROOM, "responses");
     participantUnsub = window.FS.onSnapshot(responsesRef, (snapshot) => {
         const names = [];
         snapshot.forEach(doc => {
