@@ -79,7 +79,7 @@
         <h2>제출 정책 & 진행</h2>
         <div class="row"><label><input type="radio" name="once" id="onceDevice" checked /> 기기당 1회</label><label><input type="radio" name="once" id="onceName" /> 실명당 1회</label></div>
         <div class="row"><label><input type="checkbox" id="allowSubmit" checked /> 제출 허용</label><label><input type="checkbox" id="openResult" /> 결과 공개</label><label><input type="checkbox" id="brightMode" /> 프레젠테이션 밝은 모드</label></div>
-        <div class="row"><label>타이머(초): <input id="timerSec" class="input w-96 ta-center" value="30" /></label><button id="btnOptSave" class="btn green">저장</button></div>
+        <div class="row"><label>문항별 타이머(초): <input id="timerSec" class="input w-96 ta-center" value="30" /></label><button id="btnOptSave" class="btn green">저장</button></div>
       </div>
       <div id="qrCard" class="card hide">
         <h2>학생용 접속</h2>
@@ -90,10 +90,20 @@
   </section>
 
   <section id="panelPres" class="panel admin-only hide">
-    <div class="card row">
-      <button id="btnStart" class="btn green">시작</button><button id="btnPrev" class="btn">이전</button><button id="btnNext" class="btn">다음</button><button id="btnEnd" class="btn danger">종료</button>
-      <div class="chipbox"><span class="chip">참가 <span id="chipJoin">0</span></span><span class="chip">제출 <span id="chipSubmit">0</span></span><span class="chip">정답 <span id="chipCorrect">0</span></span><span class="chip">오답 <span id="chipWrong">0</span></span></div>
-      <div class="muted"> <span id="qCounter">Q0/0</span></div>
+    <div class="card pres-controls">
+      <div class="control-group">
+        <button id="btnStart" class="btn green">시작</button><button id="btnEnd" class="btn danger">종료</button>
+      </div>
+      <div class="control-group">
+        <button id="btnPrev" class="btn">이전</button>
+        <button id="btnNext" class="btn">다음</button>
+        <button id="btnReveal" class="btn">정답 공개</button>
+      </div>
+      <div class="chipbox">
+        <span class="chip">참가 <span id="chipJoin">0</span></span><span class="chip">제출 <span id="chipSubmit">0</span></span>
+        <span class="chip">정답 <span id="chipCorrect">0</span></span><span class="chip">오답 <span id="chipWrong">0</span></span>
+      </div>
+      <div class="timer-display"><span id="qCounter">Q0/0</span><span id="liveTimer">00:00</span></div>
     </div>
     <div class="card">
       <h2 id="pTitle" class="title"></h2>
