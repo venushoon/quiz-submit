@@ -23,7 +23,7 @@ const els = {
   allowSubmit: $("allowSubmit"), openResult: $("openResult"),
   timerSec: $("timerSec"), btnOptSave: $("btnOptSave"), btnOptReset: $("btnOptReset"),
   qrCanvas: $("qrCanvas"), studentLink: $("studentLink"), btnCopy: $("btnCopy"), btnOpen: $("btnOpen"),
-  // 프레젠테이션
+  // 프레젠테ATION
   btnStart: $("btnStart"), btnPrev: $("btnPrev"), btnNext: $("btnNext"), btnEnd: $("btnEnd"),
   chipJoin: $("chipJoin"), chipSubmit: $("chipSubmit"), chipCorrect: $("chipCorrect"), chipWrong: $("chipWrong"),
   qCounter: $("qCounter"),
@@ -549,26 +549,5 @@ function init(){
   }
 }
 
-// 앱 실행 전 필수 라이브러리를 자동으로 불러오는 함수
-async function startApp() {
-  const loadScript = (url) => new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = url;
-    script.onload = resolve;
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-
-  try {
-    // 안정적인 cdnjs CDN에서 QRCode 라이브러리를 불러옵니다.
-    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js');
-    // 라이브러리 로딩 성공 후 앱 초기화
-    init();
-  } catch (error) {
-    console.error('필수 스크립트 로딩 실패:', error);
-    alert('QR코드 라이브러리를 불러오는데 실패했습니다. 인터넷 연결을 확인해주세요.');
-  }
-}
-
-// DOM이 준비되면 앱 시작
-document.addEventListener("DOMContentLoaded", startApp);
+// 모든 외부 스크립트가 로드된 후 앱 초기화 실행
+window.addEventListener("load", init);
