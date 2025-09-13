@@ -1,24 +1,27 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>실시간 퀴즈</title>
-  <link rel="stylesheet" href="app.css" />
 
+  <!-- 기존 스타일 유지 -->
+  <link rel="stylesheet" href="./app.css" />
+
+  <!-- ① Firebase compat (반드시 app.js보다 먼저) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script>
-    /* 여기에 본인 Firebase 설정을 넣으세요 */
+    // 본인 Firebase 설정으로 교체
     const firebaseConfig = {
       apiKey: "AIzaSyCClNc95ykYCudmLHTPgpewZ60bZ8zukbo",
       authDomain: "live-quiz-a14d1.firebaseapp.com",
-      projectId: "live-quiz-a14d1"
+      projectId: "live-quiz-a14d1",
     };
     firebase.initializeApp(firebaseConfig);
     window.db = firebase.firestore();
 
-    // Firestore 래퍼(compat → 함수형처럼 사용)
+    // Firestore compat → 간단 래퍼(모듈식처럼 사용)
     window.FS = {
       doc: (...path) => {
         let ref = window.db;
@@ -30,182 +33,67 @@
         return ref;
       },
       setDoc: (ref, data, opt) => opt?.merge ? ref.set(data, { merge: true }) : ref.set(data),
+      updateDoc: (ref, data) => ref.update(data),
       getDoc: (ref) => ref.get(),
       onSnapshot: (ref, cb) => ref.onSnapshot(cb),
-      updateDoc: (ref, data) => ref.update(data),
+      serverTimestamp: () => firebase.firestore.FieldValue.serverTimestamp(),
       runTransaction: (db, fn) => window.db.runTransaction(fn),
-      serverTimestamp: () => firebase.firestore.FieldValue.serverTimestamp()
     };
+
+    // URL(role, room) → body data attribute 세팅 (디자인 영향 없음)
+    (function () {
+      const u = new URL(location.href);
+      const role = (u.searchParams.get('role') || 'admin').toLowerCase();
+      const room = u.searchParams.get('room') || '';
+      document.documentElement.setAttribute('data-role', role); // CSS 제어용
+      document.documentElement.setAttribute('data-room', room);
+    })();
   </script>
 
+  <!-- ② QR 코드 라이브러리 (반드시 app.js보다 먼저) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
+
 <body>
-  <header class="topbar admin-only">
-    <h1 class="brand">실시간 퀴즈</h1>
-    <div class="session">
-      <input id="sessionInput" class="input" placeholder="클래스(세션) 입력" />
-      <button id="btnConnect" class="btn">접속</button>
-      <button id="btnDisconnect" class="btn danger">세션아웃</button>
-      <span id="sessionStatus" class="status">세션: - · 오프라인</span>
+  <!-- ----------------------------------------------------------------
+       ⬇⬇⬇  기존의 HTML 레이아웃을 그대로 사용하세요 (변경 금지)  ⬇⬇⬇
+       - 상단 메뉴, 문항/옵션/프레젠테이션/결과 탭, 입력창 등
+       - QR 캔버스: <canvas id="qrCanvas"></canvas>
+       - 학생 링크 입력창: <input id="studentLink" ...>
+       - 학생 화면 제출 버튼: id="btnSubmit"
+       - 내 결과 보기 버튼: id="btnMyResult"
+       ---------------------------------------------------------------- -->
+
+  <!-- 예시로 필요한 최소 id만 적어 둡니다. (당신의 기존 마크업 유지) -->
+  <!-- QR/링크 영역(옵션 탭에 존재) -->
+  <div class="admin-only">
+    <canvas id="qrCanvas" width="220" height="220"></canvas>
+    <input id="studentLink" class="link-input" readonly />
+    <button id="btnOpenStudent" type="button">열기</button>
+  </div>
+
+  <!-- 프레젠테이션 영역의 안내 문구 -->
+  <div id="presHint" class="admin-only pres-hint">시작 버튼을 누르면 문항이 제시됩니다.</div>
+
+  <!-- 학생 화면: 보기/주관식/제출/내결과 영역(기존 디자인 유지) -->
+  <div id="studentPanel" class="student-only">
+    <div id="studentNotice" class="student-notice">참가 완료! 교사가 시작하면 1번 문항이 표시됩니다.</div>
+
+    <!-- 선택형 보기 버튼 컨테이너 -->
+    <div id="choiceWrap"></div>
+    <!-- 주관식 입력 -->
+    <input id="shortAnswer" class="sa" placeholder="정답을 입력하세요" />
+    <!-- 제출 버튼 -->
+    <button id="btnSubmit" class="primary">제출</button>
+
+    <!-- 종료 후 노출되는 개인 결과 보기 -->
+    <div id="endedWrap" class="ended-wrap">
+      <p class="ended-text">퀴즈가 종료되었습니다!</p>
+      <button id="btnMyResult" type="button">내 결과 보기</button>
     </div>
-    <nav class="tabs admin-only">
-      <button id="tabQ" class="tab active">① 문항</button>
-      <button id="tabOpt" class="tab">② 옵션</button>
-      <button id="tabPres" class="tab">③ 프레젠테이션</button>
-      <button id="tabRes" class="tab">④ 결과</button>
-    </nav>
-  </header>
+  </div>
 
-  <section id="panelQ" class="panel admin-only">
-    <div class="card">
-      <h2>수동 출제 가이드</h2>
-      <ul class="guide">
-        <li>객관식: 문항, 보기1~4, 정답번호(숫자)</li>
-        <li>주관식: 문항, 주관식, 정답텍스트</li>
-        <li>예) 가장 큰 행성? , 지구, 목성, 화성, 금성 , 2</li>
-        <li>문항 옆 이미지 업로드로 그림 포함 가능</li>
-      </ul>
-    </div>
-
-    <div class="card">
-      <div class="row">
-        <input id="quizTitle" class="input grow" placeholder="퀴즈 제목" />
-        <input id="quizCount" class="input w-96 ta-center" value="3" />
-        <button id="btnBlank" class="chip">빈폼</button>
-        <button id="btnSample" class="chip">샘플</button>
-        <button id="btnSaveQ" class="btn green">저장</button>
-        <button id="btnUpload" class="chip">업로드</button>
-        <button id="btnTemplate" class="chip">샘플양식</button>
-      </div>
-
-      <div class="qedit">
-        <div class="row">
-          <input id="qText" class="input grow" placeholder="문항" />
-          <select id="qType" class="input w-120">
-            <option value="mcq">객관식</option>
-            <option value="short">주관식</option>
-          </select>
-          <input id="qAnswer" class="input w-96" placeholder="정답(번호/텍스트)" />
-          <input id="qImg" type="file" class="file" accept="image/*" />
-          <button id="btnAddQ" class="btn">추가</button>
-        </div>
-        <div class="row" id="mcqBox">
-          <input id="opt1" class="input grow" placeholder="보기 1" />
-          <input id="opt2" class="input grow" placeholder="보기 2" />
-          <input id="opt3" class="input grow" placeholder="보기 3" />
-          <input id="opt4" class="input grow" placeholder="보기 4" />
-        </div>
-        <div id="qList" class="qlist"></div>
-      </div>
-    </div>
-  </section>
-
-  <section id="panelOpt" class="panel admin-only hide">
-    <div class="grid-2">
-      <div class="card">
-        <h2>제출 정책 & 진행</h2>
-        <div class="row">
-          <label><input type="radio" name="once" id="onceDevice" checked /> 기기당 1회</label>
-          <label><input type="radio" name="once" id="onceName" /> 실명당 1회</label>
-        </div>
-        <div class="row">
-          <label><input type="checkbox" id="allowSubmit" checked /> 제출 허용</label>
-          <label><input type="checkbox" id="openResult" /> 결과 공개</label>
-          <label><input type="checkbox" id="brightMode" /> 프레젠테이션 밝은 모드</label>
-        </div>
-        <div class="row">
-          <label>타이머(초): <input id="timerSec" class="input w-96 ta-center" value="30" /></label>
-          <button id="btnOptSave" class="btn green">저장</button>
-          <button id="btnOptReset" class="btn danger">초기화</button>
-          <span id="timerLabel" class="muted">00:00</span>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>학생용 접속</h2>
-        <canvas id="qrCanvas" class="qr"></canvas>
-        <div class="row">
-          <input id="studentLink" class="input grow" readonly />
-          <button id="btnCopy" class="chip">복사</button>
-          <button id="btnOpen" class="chip">열기</button>
-        </div>
-        <p class="muted">※ 옵션 저장 시 QR/링크가 갱신됩니다.</p>
-      </div>
-    </div>
-  </section>
-
-  <section id="panelPres" class="panel admin-only hide">
-    <div class="card row">
-      <button id="btnStart" class="btn green">시작</button>
-      <button id="btnPrev" class="btn">이전</button>
-      <button id="btnNext" class="btn">다음</button>
-      <button id="btnEnd" class="btn danger">종료</button>
-      <div class="chipbox">
-        <span class="chip">참가 <span id="chipJoin">0</span></span>
-        <span class="chip">제출 <span id="chipSubmit">0</span></span>
-        <span class="chip">정답 <span id="chipCorrect">0</span></span>
-        <span class="chip">오답 <span id="chipWrong">0</span></span>
-      </div>
-      <div class="muted"> <span id="qCounter">Q0/0</span> <span id="liveTimer">00:00</span></div>
-    </div>
-
-    <div class="card">
-      <h2 id="pTitle" class="title">샘플 퀴즈</h2>
-      <p id="presHint" class="muted">시작 버튼을 누르면 문항이 제시됩니다.</p>
-
-      <div id="pWrap" class="pwrap hide">
-        <h3 id="pQText" class="qtitle"></h3>
-        <img id="pQImg" class="qimg hide" />
-        <div id="pOpts" class="opts"></div>
-      </div>
-    </div>
-  </section>
-
-  <section id="panelRes" class="panel admin-only hide">
-    <div class="card">
-      <div class="row">
-        <button id="btnExport" class="chip">CSV 내보내기</button>
-        <button id="btnResetAll" class="btn danger">전체 초기화</button>
-      </div>
-      <table class="table" id="resultTable">
-        <thead id="resHead"><tr><th>이름</th><th>점수</th></tr></thead>
-        <tbody id="resBody"></tbody>
-      </table>
-    </div>
-  </section>
-
-  <section id="studentPanel" class="panel">
-    <div id="joinModal" class="card hide">
-      <h2>세션 접속 필요</h2>
-      <div class="row">
-        <input id="joinName" class="input grow" placeholder="이름 또는 번호를 입력하세요!" />
-        <button id="btnJoin" class="btn">참가</button>
-      </div>
-    </div>
-
-    <div id="sWrap" class="card hide">
-      <h2 id="sTitle">샘플 퀴즈</h2>
-      <p id="sState" class="muted">참가 완료! 교사가 시작하면 1번 문항이 표시됩니다.</p>
-
-      <div id="sQBox" class="hide">
-        <h3 id="sQTitle" class="qtitle"></h3>
-        <img id="sQImg" class="qimg hide" />
-        <div id="sOptBox" class="opts"></div>
-        <div id="sShortWrap" class="row hide">
-          <input id="sShort" class="input grow" placeholder="정답을 입력하세요" />
-          <button id="btnShortSend" class="btn green">제출</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="sDone" class="card hide">
-      <h2>퀴즈가 종료되었습니다!</h2>
-      <button id="btnMyResult" class="btn">내 결과 보기</button>
-      <div id="myResult" class="mt-16 hide"></div>
-    </div>
-  </section>
-
-  <script src="app.js"></script>
+  <!-- ③ 앱 스크립트 (항상 마지막, 단 한 번) -->
+  <script src="./app.js"></script>
 </body>
 </html>
