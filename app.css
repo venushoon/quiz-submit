@@ -48,6 +48,12 @@ body.bright-mode .qlist .item { background: #f1f3f5; }
 .table{width:100%;border-collapse:collapse;margin-top:12px}
 .table th,.table td{border:1px solid var(--line);padding:10px 12px;text-align:center}
 
+/* [요청 3] 리더보드 순위 스타일 */
+.leaderboard tr.rank-1 { background-color: rgba(255, 215, 0, 0.2); } /* Gold */
+.leaderboard tr.rank-2 { background-color: rgba(192, 192, 192, 0.2); } /* Silver */
+.leaderboard tr.rank-3 { background-color: rgba(205, 127, 50, 0.2); } /* Bronze */
+.leaderboard tr .rank-icon { font-size: 1.2em; }
+
 dialog {
   width: 500px; max-width: 90vw;
   border: 1px solid var(--line);
