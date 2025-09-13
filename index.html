@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>실시간 퀴즈</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❓</text></svg>">
   <link rel="stylesheet" href="app.css" />
 
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -115,7 +116,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div id="qrCard" class="card">
         <h2>학생용 접속</h2>
         <img id="qrImg" class="qr" alt="학생용 접속 QR코드" src="">
         <div class="row">
@@ -127,7 +128,7 @@
       </div>
     </div>
   </section>
-  
+
   <section id="panelPres" class="panel admin-only hide">
     <div class="card row">
       <button id="btnStart" class="btn green">시작</button>
@@ -169,14 +170,14 @@
   </section>
 
   <section id="studentPanel" class="panel">
-    <div id="joinModal" class="card hide">
-      <h2>세션 접속 필요</h2>
-      <div class="row">
-        <input id="joinName" class="input grow" placeholder="이름 또는 번호를 입력하세요!" />
-        <button id="btnJoin" class="btn">참가</button>
-      </div>
-    </div>
-
+    <dialog id="joinDialog" class="card">
+        <h2>퀴즈 참여</h2>
+        <div class="row">
+          <input id="joinName" class="input grow" placeholder="이름 또는 번호를 입력하세요!" />
+          <button id="btnJoin" class="btn">참가</button>
+        </div>
+    </dialog>
+      
     <div id="sWrap" class="card hide">
       <h2 id="sTitle">샘플 퀴즈</h2>
       <p id="sState" class="muted">참가 완료! 교사가 시작하면 1번 문항이 표시됩니다.</p>
@@ -189,6 +190,7 @@
           <input id="sShort" class="input grow" placeholder="정답을 입력하세요" />
           <button id="btnShortSend" class="btn green">제출</button>
         </div>
+        <div id="sSubmitBox" class="mt-16"></div>
       </div>
     </div>
 
