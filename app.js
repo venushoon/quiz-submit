@@ -17,6 +17,7 @@ const els = {
   allowSubmit: $("allowSubmit"), openResult: $("openResult"), brightMode: $("brightMode"),
   timerSec: $("timerSec"), btnOptSave: $("btnOptSave"),
   qrCard: $("qrCard"), qrImg: $("qrImg"), studentLink: $("studentLink"), btnCopy: $("btnCopy"), btnOpen: $("btnOpen"),
+  participantCard: $("participantCard"), participantCount: $("participantCount"), participantList: $("participantList"),
   btnStart: $("btnStart"), btnPrev: $("btnPrev"), btnNext: $("btnNext"), btnEnd: $("btnEnd"), btnReveal: $("btnReveal"),
   chipJoin: $("chipJoin"), chipSubmit: $("chipSubmit"), chipCorrect: $("chipCorrect"), chipWrong: $("chipWrong"),
   qCounter: $("qCounter"), liveTimer: $("liveTimer"),
@@ -35,6 +36,7 @@ const els = {
 let ROOM = null;
 let MODE = "admin";
 let roomUnsub = null;
+let participantUnsub = null;
 let editQuestions = [];
 let questionTimer = null;
 
@@ -54,7 +56,13 @@ const getStudentId = () => {
 function setTab(activeTabId) {
   els.tabs.forEach(tab => tab.classList.toggle('active', tab.id === activeTabId));
   els.panels.forEach(panel => panel.classList.toggle('hide', panel.id !== `panel${activeTabId.slice(3)}`));
-  els.qrCard.classList.toggle('hide', activeTabId !== 'tabOpt');
+  
+  if (participantUnsub) participantUnsub();
+  if (activeTabId === 'tabOpt') {
+    listenForParticipants();
+  } else {
+    els.participantCard.classList.add('hide');
+  }
 }
 
 function buildStudentLink(room) {
@@ -102,7 +110,9 @@ async function connect() {
 
 function disconnect() {
     if(roomUnsub) roomUnsub();
-    roomUnsub = null; ROOM = null;
+    if(participantUnsub) participantUnsub();
+    roomUnsub = null; participantUnsub = null; ROOM = null;
+    
     els.sessionInput.disabled = false;
     els.btnConnection.textContent = '접속';
     els.btnConnection.classList.remove('danger');
@@ -182,7 +192,6 @@ async function resetQuestions() {
     
     await window.FS.updateDoc(window.FS.doc("rooms", ROOM), { questions: [] });
     editQuestions = [];
-    alert("모든 문항이 삭제되었습니다.");
 }
 
 function makeBlank() {
@@ -252,7 +261,7 @@ async function controlQuiz(action) {
         } else if (action === 'prev') {
             await window.FS.updateDoc(docRef, { currentIndex: Math.max(0, cur - 1), accept: true, revealed: -1 });
         } else if (action === 'reveal') {
-            await window.FS.updateDoc(docRef, { revealed: cur });
+            await window.FS.updateDoc(docRef, { revealed: cur, accept: false });
         }
     }
 }
@@ -282,10 +291,12 @@ async function joinStudent() {
     const name = els.joinName.value.trim();
     if(!name) { alert("이름을 입력하세요."); return; }
     const sid = getStudentId();
+
     await window.FS.setDoc(window.FS.doc("rooms", ROOM, "responses", sid), {
         name, joinedAt: window.FS.serverTimestamp(), deviceId: sid, answers:{}, score:0 
     });
     await window.FS.updateDoc(window.FS.doc("rooms", ROOM), { 'counters.join': window.FS.increment(1) });
+    
     els.joinDialog.close();
 }
 
@@ -321,7 +332,7 @@ async function submitStudent(answerPayload) {
     alert(isCorrect ? "정답입니다!" : "제출 완료!");
 }
 
-// ===== 렌더링 =====
+// ===== 렌더링 및 UI 업데이트 =====
 function renderRoom(r) {
     els.body.classList.toggle('bright-mode', r.policy?.bright || false);
     els.pTitle.textContent = r.title || ""; els.sTitle.textContent = r.title || "";
@@ -387,10 +398,10 @@ function renderRoom(r) {
             els.sDone.classList.remove("hide");
             els.btnMyResult.classList.toggle('hide', !r.policy?.openResult);
         } else if (r.mode !== 'active' || !q) {
-            els.sState.textContent = "참가 완료! 퀴즈가 시작되기를 기다려주세요.";
+            els.sState.textContent = "교사가 시작버튼을 누르면 퀴즈가 시작됩니다. 준비되었나요?";
             els.sQBox.classList.add("hide");
         } else if (!r.accept) {
-            els.sState.textContent = "제출이 마감되었습니다. 다음 문항을 기다려주세요.";
+            els.sState.textContent = r.revealed === cur ? "정답이 공개되었습니다." : "제출이 마감되었습니다. 다음 문항을 기다려주세요.";
             els.sQBox.classList.add("hide");
         } else {
             els.sState.textContent = "";
@@ -428,18 +439,20 @@ function renderRoom(r) {
 function renderQuestionList(questions = []) {
     els.qList.innerHTML = "";
     const allQuestions = [...editQuestions.reverse(), ...questions];
+    els.qList.style.display = allQuestions.length > 0 ? 'block' : 'none';
     allQuestions.forEach((q, index) => {
         const item = CE("div", "item");
+        const questionIndex = questions.length - 1 - (index - editQuestions.length);
         item.innerHTML = `<span class="item-text">${q.type === 'mcq' ? '[객관식]' : '[주관식]'} ${q.text}</span>`;
         const deleteBtn = CE("button", "delete-btn");
         deleteBtn.textContent = "×";
         deleteBtn.onclick = (e) => {
             e.stopPropagation();
-            if (index < editQuestions.length) { // A new, unsaved question
+            if (index < editQuestions.length) { 
                 editQuestions.splice(index, 1);
                 renderQuestionList(questions);
-            } else { // An already saved question
-                deleteQuestion(index - editQuestions.length);
+            } else { 
+                deleteQuestion(questionIndex);
             }
         };
         item.appendChild(deleteBtn);
@@ -484,7 +497,6 @@ function updateTimer(roomData) {
     }
 }
 
-
 async function refreshResults() {
     if(!ROOM) return;
     const roomSnap = await window.FS.getDoc(window.FS.doc("rooms", ROOM));
@@ -495,7 +507,7 @@ async function refreshResults() {
     
     els.resHead.innerHTML = `<tr><th>순위</th><th>이름</th>${Array.from({length: total}, (_, i) => `<th>Q${i+1}</th>`).join("")}<th>점수</th></tr>`;
 
-    const respSnap = await window.FS.getDocs(window.FS.doc("rooms", ROOM, "responses"));
+    const respSnap = await window.FS.getDocs(window.FS.collection(db, "rooms", ROOM, "responses"));
     const rows = [];
     respSnap.forEach(d => rows.push(d.data()));
     
@@ -514,8 +526,11 @@ async function refreshResults() {
             let result = "-";
             if (ans !== undefined) {
                 const q = doc.questions[i];
-                let isCorrect = q.type === "mcq" ? (ans === q.answer) : (String(ans||"").trim().toLowerCase() === String(q.answerText||"").trim().toLowerCase());
-                result = isCorrect ? "✔️" : "❌";
+                if (!q) { result = '?'; }
+                else {
+                    let isCorrect = q.type === "mcq" ? (ans === q.answer) : (String(ans||"").trim().toLowerCase() === String(q.answerText||"").trim().toLowerCase());
+                    result = isCorrect ? "✔️" : "❌";
+                }
             }
             cells += `<td>${result}</td>`;
         }
@@ -539,6 +554,7 @@ async function refreshMyResult() {
     
     for(let i=0; i<total; i++){
         const q = doc.questions[i];
+        if (!q) continue;
         const ans = v.answers?.[i];
         let isCorrect = false;
         let submittedAnsStr = "-";
@@ -560,6 +576,20 @@ async function refreshMyResult() {
     els.myResult.classList.remove("hide");
 }
 
+function listenForParticipants() {
+    if (!ROOM) return;
+    els.participantCard.classList.remove('hide');
+    const responsesRef = window.FS.collection(db, "rooms", ROOM, "responses");
+    participantUnsub = window.FS.onSnapshot(responsesRef, (snapshot) => {
+        const names = [];
+        snapshot.forEach(doc => {
+            names.push(doc.data().name);
+        });
+        els.participantCount.textContent = names.length;
+        els.participantList.innerHTML = names.map(name => `<li>${name}</li>`).join('');
+    });
+}
+
 // ===== 초기화 및 이벤트 바인딩 =====
 function bindAdminEvents() {
     els.tabs.forEach(tab => tab.addEventListener('click', () => setTab(tab.id)));
@@ -568,6 +598,7 @@ function bindAdminEvents() {
     els.btnSample.onclick = loadSample;
     els.btnAddQ.onclick = addQuestionUI;
     els.btnSaveQ.onclick = saveQuestions;
+    els.btnResetQ.onclick = resetQuestions;
     els.btnOptSave.onclick = saveOptions;
     els.btnCopy.onclick = () => navigator.clipboard.writeText(els.studentLink.value);
     els.btnOpen.onclick = () => { if(els.studentLink.value) window.open(els.studentLink.value, "_blank"); };
@@ -578,7 +609,6 @@ function bindAdminEvents() {
     els.btnReveal.onclick = () => controlQuiz('reveal');
     els.btnExport.onclick = exportCSV;
     els.btnResetAll.onclick = resetAll;
-    els.btnResetQ.onclick = resetQuestions;
 }
 
 function bindStudentEvents() {
