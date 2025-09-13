@@ -4,10 +4,8 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,Apple SD Gothic Neo,Roboto,Arial}
-a{color:#8ecbff}
 .hide{display:none !important}
 .mt-16{margin-top:16px}
-.ta-center{text-align:center}
 
 .topbar{display:flex;align-items:center;gap:16px;padding:16px 20px;border-bottom:1px solid var(--line)}
 .brand{margin:0 8px 0 0;font-size:28px}
@@ -23,11 +21,9 @@ a{color:#8ecbff}
 .row{display:flex;gap:10px;align-items:center}
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .grow{flex:1}
-.w-96{width:96px}
-.w-120{width:120px}
+.w-96{width:96px} .w-120{width:120px}
 
 .input{background:#0d1420;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
-.file{color:var(--muted)}
 .btn,.chip{background:var(--btn);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px 14px;cursor:pointer}
 .btn.green{background:var(--green);border-color:#198d59;color:#072214}
 .btn.danger{background:var(--red);border-color:#b03c3c}
@@ -48,14 +44,9 @@ a{color:#8ecbff}
 .qr{width:220px;height:220px;background:white;border:1px solid var(--line);border-radius:12px; padding: 10px; box-sizing: content-box;}
 .table{width:100%;border-collapse:collapse;margin-top:12px}
 .table th,.table td{border:1px solid var(--line);padding:10px 12px;text-align:center}
-.title{margin:6px 0 10px;font-size:24px}
 
-.pwrap{min-height:140px}
-
-/* [요청 2] 학생 이름 입력 팝업 스타일 */
 dialog {
-  width: 500px;
-  max-width: 90vw;
+  width: 500px; max-width: 90vw;
   border: 1px solid var(--line);
   background-color: var(--card);
   color: var(--text);
