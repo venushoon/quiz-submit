@@ -1,61 +1,62 @@
-/* ===== 공통 보강 ===== */
-:root { color-scheme: dark; }
-html, body { height: 100%; }
-
-/* 역할별 표시 제어 */
-[data-role="student"] .admin-only { display: none !important; }
-[data-role="admin"]   .student-only { display: none !important; }
-
-/* 학생 화면 가독성(흰색 계열) */
-[data-role="student"] body,
-[data-role="student"] .student-only,
-[data-role="student"] #choiceWrap button,
-[data-role="student"] #shortAnswer {
-  color: #f3f6ff !important;
+:root {
+  --bg:#0f1620; --card:#121b26; --muted:#9fb3c8; --text:#e9f0f6;
+  --btn:#24364a; --green:#21c07a; --red:#ef5a5a; --chip:#1a2633; --line:#203041;
 }
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,Apple SD Gothic Neo,Roboto,Arial}
+a{color:#8ecbff}
+.hide{display:none !important}
+.mt-16{margin-top:16px}
+.ta-center{text-align:center}
 
-/* 보기 버튼(학생) – 기존 스타일 유지 + 약간의 테두리 */
-#choiceWrap button {
-  display: block;
-  width: 100%;
-  padding: 14px 18px;
-  margin: 10px 0;
-  border: 1px solid rgba(255,255,255,.06);
-  border-radius: 16px;
-  background: rgba(255,255,255,.04);
+.topbar{display:flex;align-items:center;gap:16px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.brand{margin:0 8px 0 0;font-size:28px}
+.session{display:flex;align-items:center;gap:8px}
+.status{color:var(--muted);margin-left:8px}
+
+.tabs{display:flex;gap:8px;margin:8px 0 0 20px}
+.tab{background:var(--chip);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px 16px;cursor:pointer}
+.tab.active,.tab:focus{outline:2px solid #4aa8ff}
+
+.panel{max-width:1200px;margin:18px auto;padding:0 20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:12px 0}
+.row{display:flex;gap:10px;align-items:center}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grow{flex:1}
+.w-96{width:96px}
+.w-120{width:120px}
+
+.input{background:#0d1420;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.file{color:var(--muted)}
+.btn,.chip{background:var(--btn);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px 14px;cursor:pointer}
+.btn.green{background:var(--green);border-color:#198d59;color:#072214}
+.btn.danger{background:var(--red);border-color:#b03c3c}
+.chip{background:var(--chip)}
+.chipbox{display:flex;gap:8px;margin-left:auto}
+.muted{color:var(--muted);font-size:14px}
+
+.qtitle{font-size:22px;margin:8px 0 10px}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0}
+.opts .popt,.opts .sopt,.opts button{background:#152232;border:1px solid var(--line);border-radius:14px;padding:18px;font-size:18px;text-align:center;cursor:pointer}
+.opts .sopt.active { outline: 2px solid #4aa8ff; background: #1f3147; }
+.qimg{max-width:100%;border-radius:10px;margin:10px 0}
+
+.qedit .row{margin-top:10px}
+.qlist{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
+.qlist .item{padding:8px 10px;border:1px solid var(--line);border-radius:10px;margin:6px 0;background:#0d1420}
+
+.qr{width:220px;height:220px;background:#fff;border:1px solid var(--line);border-radius:12px; padding: 10px; box-sizing: content-box;}
+
+.table{width:100%;border-collapse:collapse;margin-top:12px}
+.table th,.table td{border:1px solid var(--line);padding:10px 12px;text-align:center}
+.title{margin:6px 0 10px;font-size:24px}
+
+.pwrap{min-height:140px}
+
+/* ===== 학생 화면 개선 ===== */
+#studentPanel .card {
+  color: var(--text); /* 명시적으로 텍스트 색상 지정 */
 }
-
-/* 주관식 입력(학생) */
-#shortAnswer {
-  width: 100%;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: rgba(255,255,255,.05);
-  border: 1px solid rgba(255,255,255,.07);
-  margin: 8px 0 14px;
+#myResult .table th, #myResult .table td {
+  text-align: center; /* 내 결과 보기 테이블 텍스트 중앙 정렬 */
 }
-
-/* 제출 버튼(학생) */
-#btnSubmit.primary {
-  width: 100%;
-  padding: 16px 0;
-  border-radius: 14px;
-  background: #22c55e;
-  color: #0c1016;
-  font-weight: 700;
-}
-
-/* 안내/종료 블록(학생) */
-#studentNotice { opacity: .9; margin-bottom: 8px; }
-.ended-wrap { display: none; margin-top: 14px; }
-.ended-wrap .ended-text { font-size: 18px; margin: 0 0 8px; }
-
-/* 프레젠테이션 안내 문구(교사) */
-.pres-hint { opacity: .75; margin: 10px 0; }
-
-/* QR 캔버스 크기 살짝 축소(요청사항) */
-#qrCanvas { width: 180px; height: 180px; }
-
-/* 결과표에서 O/X 표시 가독성 */
-.badge-o { color:#22c55e; font-weight:700; }
-.badge-x { color:#ef4444; font-weight:700; }
