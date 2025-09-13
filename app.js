@@ -210,6 +210,11 @@ async function controlQuiz(action) {
     const docRef = window.FS.doc("rooms", ROOM);
 
     if (action === 'start') {
+        const doc = await window.FS.getDoc(docRef);
+        if (!doc.exists || !doc.data().questions || doc.data().questions.length === 0) {
+            alert("퀴즈에 문항이 없습니다. 문항을 추가한 후 시작해주세요.");
+            return;
+        }
         await window.FS.updateDoc(docRef, { mode: "active", currentIndex: 0, accept: true });
     } else if (action === 'end') {
         await window.FS.updateDoc(docRef, { mode: "ended", accept: false });
@@ -231,7 +236,7 @@ async function controlQuiz(action) {
 
 function exportCSV() {
     if (!ROOM) { alert("먼저 세션에 접속하세요."); return; }
-    let csvContent = "\uFEFF"; // BOM for Excel
+    let csvContent = "\uFEFF"; 
     csvContent += "이름,점수\n";
     
     const rows = els.resBody.querySelectorAll("tr");
@@ -256,11 +261,14 @@ async function joinStudent() {
     const sid = getStudentId();
     const docRef = window.FS.doc("rooms", ROOM);
     await window.FS.setDoc(window.FS.doc(docRef, "responses", sid), {
-        name, joinedAt: window.FS.serverTimestamp(), deviceId: getStudentId(), answers:{}, score:0 
+        name, joinedAt: window.FS.serverTimestamp(), deviceId: sid, answers:{}, score:0 
     });
     await window.FS.updateDoc(docRef, { 'counters.join': window.FS.increment(1) });
 
     els.joinDialog.close();
+    // [수정] 아래 두 줄이 누락되어 있었습니다.
+    els.sWrap.classList.remove("hide");
+    els.sState.textContent = "참가 완료! 퀴즈가 시작되기를 기다려주세요.";
 }
 
 async function submitStudent(answerPayload) {
@@ -321,19 +329,20 @@ function renderRoom(r) {
       if (r.policy?.once === 'name') els.onceName.checked = true; else els.onceDevice.checked = true;
     }
 
+    const q = r.questions?.[cur];
+    
     if (MODE === 'admin') {
         if (r.mode === 'ended') {
             els.presHint.textContent = "퀴즈가 종료되었습니다.";
             els.presHint.classList.remove("hide");
             els.pWrap.classList.add("hide");
-        } else if (r.mode !== 'active' || cur < 0) {
+        } else if (r.mode !== 'active' || !q) {
             els.presHint.textContent = "시작 버튼을 누르면 문항이 제시됩니다.";
             els.presHint.classList.remove("hide");
             els.pWrap.classList.add("hide");
         } else {
             els.presHint.classList.add("hide");
             els.pWrap.classList.remove("hide");
-            const q = r.questions[cur];
             els.pQText.textContent = q.text || "";
             els.pQImg.src = q.image || "";
             els.pQImg.classList.toggle("hide", !q.image);
@@ -358,7 +367,7 @@ function renderRoom(r) {
             els.sWrap.classList.add("hide");
             els.sDone.classList.remove("hide");
             els.btnMyResult.classList.toggle('hide', !r.policy?.openResult);
-        } else if (r.mode !== 'active' || cur < 0) {
+        } else if (r.mode !== 'active' || !q) {
             els.sWrap.classList.remove("hide");
             els.sState.textContent = "참가 완료! 퀴즈가 시작되기를 기다려주세요.";
             els.sQBox.classList.add("hide");
@@ -367,7 +376,6 @@ function renderRoom(r) {
             els.sState.textContent = "제출이 마감되었습니다. 다음 문항을 기다려주세요.";
             els.sQBox.classList.add("hide");
         } else {
-            const q = r.questions[cur];
             els.sWrap.classList.remove("hide");
             els.sState.textContent = "";
             els.sQBox.classList.remove("hide");
@@ -520,7 +528,7 @@ function init() {
     }
     
     if (MODE === 'admin') {
-        document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
         els.studentPanel.style.display = 'none';
         bindAdminEvents();
         setTab('tabQ');
