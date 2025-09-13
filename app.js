@@ -1,3 +1,17 @@
+// --- compat 준비 점검(최상단에 추가) ---
+if (!window.firebase || !window.db || !window.FS) {
+  throw new Error("[firebase] not loaded. Ensure compat scripts and window.db/FS are set before app.js");
+}
+
+// Firestore API 단축 (compat)
+const { doc, collection, setDoc, getDoc, getDocs,
+        onSnapshot, updateDoc, runTransaction, serverTimestamp } = window.FS;
+
+// QRCode 안전 가드 (없어도 앱이 죽지 않게)
+function safeQRCode(canvasEl, text, opts = { width: 140 }) {
+  if (!window.QRCode || !canvasEl) return;
+  try { window.QRCode.toCanvas(canvasEl, text, opts); } catch(e) { console.warn(e); }
+}
 /* ========= quiz-submit / app.js (drop-in) =========
    - 기본 시작: 관리자 모드
    - 학생 링크: ?role=student&room=xxx
