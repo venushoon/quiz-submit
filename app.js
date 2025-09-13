@@ -112,7 +112,7 @@ function buildStudentLink(room){
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0,0,canvas.width, canvas.height);
     // QRCode 라이브러리 사용
-    QRCode.toCanvas(canvas, url, { width: 220, margin: 1 });
+    QRCode.toCanvas(canvas, url, { width: 220, margin: 1, color: { dark: '#0f1620', light: '#ffffff' } });
   }catch(e){ console.warn("[QR] 생성 실패", e); }
 }
 
@@ -143,6 +143,9 @@ async function connect(){
   roomUnsub = FS.onSnapshot(roomRef(room), snap => {
     if(snap.exists) renderRoom(snap.data());
   });
+  
+  // [수정] 접속 시 바로 QR코드 생성
+  buildStudentLink(room);
 
   // 탭은 문항으로
   setTab("q");
@@ -287,7 +290,7 @@ function exportCSV(){
   const rows = [["이름","점수"]];
   els.resBody.querySelectorAll("tr").forEach(tr=>{
     const name = tr.children[0].textContent.trim();
-    const score = tr.children[1].textContent.trim();
+    const score = tr.children[tr.children.length - 1].textContent.trim();
     rows.push([name, score]);
   });
   const csv = rows.map(r=>r.map(v=>`"${(v||"").replace(/"/g,'""')}"`).join(",")).join("\n");
@@ -405,8 +408,9 @@ function renderRoom(r){
     }
     // 문제 표시
     const q = r.questions[cur];
+    els.sState.classList.add("hide");
     els.sQBox.classList.remove("hide");
-    els.sQTitle.textContent = q.text || "";
+    els.sQTitle.textContent = `Q${cur+1}. ${q.text || ""}`;
     els.sQImg.classList.add("hide"); els.sQImg.src="";
     if(q.image){ els.sQImg.src=q.image; els.sQImg.classList.remove("hide"); }
     els.sOptBox.innerHTML="";
@@ -419,6 +423,7 @@ function renderRoom(r){
         els.sOptBox.appendChild(btn);
       });
       const submitBtn = CE("button","btn green"); submitBtn.textContent="제출";
+      submitBtn.style.gridColumn = "1 / -1"; // 버튼을 한 줄 전체 차지하도록
       submitBtn.style.marginTop="10px";
       submitBtn.onclick = ()=>{ if(chosen===null){alert("보기를 선택하세요"); return;} submitStudent(chosen); };
       els.sOptBox.appendChild(submitBtn);
@@ -446,7 +451,7 @@ async function refreshResults(){
 
   // 바디
   els.resBody.innerHTML = "";
-  const resSnap = await roomRef(ROOM).collection("responses").get();
+  const resSnap = await FS.getDoc(roomRef(ROOM).collection("responses"));
   const rows = [];
   resSnap.forEach(d=>{
     const v = d.data();
@@ -466,7 +471,6 @@ async function refreshResults(){
       tr.appendChild(td);
     }
     tr.appendChild(CE("td")).textContent = String(v.score||0);
-    els.resBody.appendChild(tr);
     rows.push({name:v.name||"", score:v.score||0, el:tr});
   });
   // 점수 내림차순
@@ -513,22 +517,56 @@ async function refreshMyResult(){
   if(!rs.exists){ els.myResult.textContent = "제출 기록이 없습니다."; return; }
   const snap = await FS.getDoc(roomRef(ROOM)); const doc = snap.data();
   const total = doc.questions?.length||0; const v = rs.data();
+  
   const box = CE("div");
-  box.innerHTML = `<p>이름: <b>${v.name||""}</b> · 점수: <b>${v.score||0}</b></p>`;
-  const tbl = CE("table","table"); const thead=CE("thead"), tb=CE("tbody");
-  const trh = CE("tr"); trh.appendChild(CE("th")).textContent="문항"; trh.appendChild(CE("th")).textContent="제출"; trh.appendChild(CE("th")).textContent="정답";
+  box.innerHTML = `<p>이름: <b>${v.name||""}</b> · 점수: <b>${v.score||0} / ${total}</b></p>`;
+  
+  const tbl = CE("table","table"); 
+  const thead=CE("thead"), tb=CE("tbody");
+  const trh = CE("tr");
+  ["문항", "제출", "정답", "정답여부"].forEach(txt => {
+    trh.appendChild(CE("th")).textContent = txt;
+  });
   thead.appendChild(trh);
-  for(let i=0;i<total;i++){
-    const tr=CE("tr");
-    const q=doc.questions[i];
-    const ans=v.answers?.[i];
-    tr.appendChild(CE("td")).textContent=`Q${i+1}`;
-    tr.appendChild(CE("td")).textContent=(ans===undefined?"-": (q.type==="mcq"? (q.options[ans]||"-") : String(ans)));
-    tr.appendChild(CE("td")).textContent=(q.type==="mcq"? (q.options[q.answer]||"-") : (q.answerText||"-"));
+
+  for(let i=0; i<total; i++){
+    const tr = CE("tr");
+    const q = doc.questions[i];
+    const ans = v.answers?.[i];
+    
+    // 정답여부 계산
+    let correct = false;
+    if (ans !== undefined) {
+        if (q.type === "mcq") correct = (ans === q.answer);
+        else correct = (String(ans || "").trim() === String(q.answerText || "").trim());
+    }
+
+    // 1. 문항 번호
+    tr.appendChild(CE("td")).textContent = `Q${i+1}`;
+    // 2. 내가 제출한 답
+    const submittedTd = CE("td");
+    submittedTd.textContent = (ans === undefined ? "-" : (q.type === "mcq" ? (q.options[ans] || "-") : String(ans)));
+    tr.appendChild(submittedTd);
+    // 3. 실제 정답
+    const correctTd = CE("td");
+    correctTd.textContent = (q.type === "mcq" ? (q.options[q.answer] || "-") : (q.answerText || "-"));
+    tr.appendChild(correctTd);
+    // 4. O/X
+    const resultTd = CE("td");
+    resultTd.textContent = (ans === undefined) ? "-" : (correct ? "O" : "X");
+    tr.appendChild(resultTd);
+
     tb.appendChild(tr);
   }
-  tbl.appendChild(thead); tbl.appendChild(tb);
-  els.myResult.innerHTML=""; els.myResult.appendChild(box); els.myResult.appendChild(tbl);
+
+  tbl.appendChild(thead); 
+  tbl.appendChild(tb);
+  els.myResult.innerHTML=""; 
+  els.myResult.appendChild(box); 
+  els.myResult.appendChild(tbl);
+  
+  // [수정] 결과를 표시
+  els.myResult.classList.remove("hide");
 }
 
 // ===== 초기화 =====
