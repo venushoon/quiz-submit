@@ -37,9 +37,8 @@
       serverTimestamp: () => firebase.firestore.FieldValue.serverTimestamp()
     };
   </script>
-
-  <script src="qrcode.min.js"></script>
-</head>
+  
+  </head>
 <body>
   <header class="topbar admin-only">
     <h1 class="brand">실시간 퀴즈</h1>
@@ -71,12 +70,9 @@
     <div class="card">
       <div class="row">
         <input id="quizTitle" class="input grow" placeholder="퀴즈 제목" />
-        <input id="quizCount" class="input w-96 ta-center" value="3" />
         <button id="btnBlank" class="chip">빈폼</button>
         <button id="btnSample" class="chip">샘플</button>
         <button id="btnSaveQ" class="btn green">저장</button>
-        <button id="btnUpload" class="chip">업로드</button>
-        <button id="btnTemplate" class="chip">샘플양식</button>
       </div>
 
       <div class="qedit">
@@ -112,13 +108,11 @@
         <div class="row">
           <label><input type="checkbox" id="allowSubmit" checked /> 제출 허용</label>
           <label><input type="checkbox" id="openResult" /> 결과 공개</label>
-          <label><input type="checkbox" id="brightMode" /> 프레젠테이션 밝은 모드</label>
         </div>
         <div class="row">
           <label>타이머(초): <input id="timerSec" class="input w-96 ta-center" value="30" /></label>
           <button id="btnOptSave" class="btn green">저장</button>
           <button id="btnOptReset" class="btn danger">초기화</button>
-          <span id="timerLabel" class="muted">00:00</span>
         </div>
       </div>
 
@@ -147,7 +141,7 @@
         <span class="chip">정답 <span id="chipCorrect">0</span></span>
         <span class="chip">오답 <span id="chipWrong">0</span></span>
       </div>
-      <div class="muted"> <span id="qCounter">Q0/0</span> <span id="liveTimer">00:00</span></div>
+      <div class="muted"> <span id="qCounter">Q0/0</span></div>
     </div>
 
     <div class="card">
