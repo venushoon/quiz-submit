@@ -9,7 +9,7 @@ const els = {
   tabs: document.querySelectorAll('.tabs .tab'), panels: document.querySelectorAll('.panel.admin-only'),
   tabQ: $("tabQ"), tabOpt: $("tabOpt"), tabPres: $("tabPres"), tabRes: $("tabRes"),
   panelQ: $("panelQ"), panelOpt: $("panelOpt"), panelPres: $("panelPres"), panelRes: $("panelRes"),
-  quizTitle: $("quizTitle"), btnBlank: $("btnBlank"), btnSample: $("btnSample"), btnSaveQ: $("btnSaveQ"), btnUpload: $("btnUpload"), btnTemplate: $("btnTemplate"),
+  quizTitle: $("quizTitle"), btnBlank: $("btnBlank"), btnSample: $("btnSample"), btnSaveQ: $("btnSaveQ"), btnResetQ: $("btnResetQ"),
   qText: $("qText"), qType: $("qType"), qAnswer: $("qAnswer"), qImg: $("qImg"),
   mcqBox: $("mcqBox"), opt1: $("opt1"), opt2: $("opt2"), opt3: $("opt3"), opt4: $("opt4"),
   btnAddQ: $("btnAddQ"), qList: $("qList"),
@@ -147,6 +147,7 @@ function addQuestionUI() {
 
 async function saveQuestions() {
     if (!ROOM) { alert("먼저 세션에 접속하세요."); return; }
+    if (editQuestions.length === 0) { alert("추가된 문항이 없습니다."); return; }
     const docRef = window.FS.doc("rooms", ROOM);
     const doc = await window.FS.getDoc(docRef);
     const currentQuestions = doc.exists ? doc.data().questions || [] : [];
@@ -158,6 +159,16 @@ async function saveQuestions() {
     editQuestions = [];
     els.qList.innerHTML = "";
     alert("문항 저장 완료");
+}
+
+async function resetQuestions() {
+    if (!ROOM) { alert("먼저 세션에 접속하세요."); return; }
+    if (!confirm("현재 퀴즈의 모든 문항을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) return;
+    
+    await window.FS.updateDoc(window.FS.doc("rooms", ROOM), { questions: [] });
+    editQuestions = [];
+    els.qList.innerHTML = "";
+    alert("모든 문항이 삭제되었습니다.");
 }
 
 function makeBlank() {
@@ -200,7 +211,7 @@ async function saveOptions() {
 
 async function resetAll() {
     if (!ROOM) { alert("먼저 세션에 접속하세요."); return; }
-    if(!confirm("이 세션의 모든 문항, 결과, 옵션을 초기화할까요?")) return;
+    if(!confirm("이 세션의 모든 문항, 결과, 옵션을 초기화할까요? 이 작업은 되돌릴 수 없습니다.")) return;
     await window.FS.setDoc(window.FS.doc("rooms", ROOM), defaultRoom());
     alert("초기화 완료");
 }
@@ -237,13 +248,14 @@ async function controlQuiz(action) {
 function exportCSV() {
     if (!ROOM) { alert("먼저 세션에 접속하세요."); return; }
     let csvContent = "\uFEFF"; 
-    csvContent += "이름,점수\n";
+    csvContent += "순위,이름,점수\n";
     
     const rows = els.resBody.querySelectorAll("tr");
     rows.forEach(row => {
-        const name = `"${row.cells[0].textContent.trim().replace(/"/g, '""')}"`;
+        const rank = `"${row.cells[0].textContent.trim()}"`;
+        const name = `"${row.cells[1].textContent.trim().replace(/"/g, '""')}"`;
         const score = `"${row.cells[row.cells.length - 1].textContent.trim()}"`;
-        csvContent += `${name},${score}\n`;
+        csvContent += `${rank},${name},${score}\n`;
     });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -259,16 +271,17 @@ async function joinStudent() {
     if(!name) { alert("이름을 입력하세요."); return; }
     
     const sid = getStudentId();
-    const docRef = window.FS.doc("rooms", ROOM);
-    await window.FS.setDoc(window.FS.doc(docRef, "responses", sid), {
+    // [오류 수정] Firestore 경로를 올바른 문자열 형태로 전달
+    const respDocRef = window.FS.doc("rooms", ROOM, "responses", sid);
+    await window.FS.setDoc(respDocRef, {
         name, joinedAt: window.FS.serverTimestamp(), deviceId: sid, answers:{}, score:0 
     });
-    await window.FS.updateDoc(docRef, { 'counters.join': window.FS.increment(1) });
+    
+    const roomRef = window.FS.doc("rooms", ROOM);
+    await window.FS.updateDoc(roomRef, { 'counters.join': window.FS.increment(1) });
 
     els.joinDialog.close();
-    // [수정] 아래 두 줄이 누락되어 있었습니다.
     els.sWrap.classList.remove("hide");
-    els.sState.textContent = "참가 완료! 퀴즈가 시작되기를 기다려주세요.";
 }
 
 async function submitStudent(answerPayload) {
@@ -282,7 +295,7 @@ async function submitStudent(answerPayload) {
     if(qIdx < 0 || !doc.accept) { alert("제출 시간이 아닙니다."); return; }
 
     const q = doc.questions[qIdx];
-    const respRef = window.FS.doc(roomRef, "responses", sid);
+    const respRef = window.FS.doc("rooms", ROOM, "responses", sid);
     const respSnap = await window.FS.getDoc(respRef);
     const data = respSnap.data() || { answers: {} };
 
@@ -427,29 +440,44 @@ async function refreshResults() {
     const doc = roomSnap.data();
     const total = doc.questions?.length || 0;
     
-    els.resHead.innerHTML = `<tr><th>이름</th>${Array.from({length: total}, (_, i) => `<th>Q${i+1}</th>`).join("")}<th>점수</th></tr>`;
+    els.resHead.innerHTML = `<tr><th>순위</th><th>이름</th>${Array.from({length: total}, (_, i) => `<th>Q${i+1}</th>`).join("")}<th>점수</th></tr>`;
 
     const respSnap = await window.FS.getDocs(window.FS.doc("rooms", ROOM, "responses"));
     const rows = [];
     respSnap.forEach(d => {
         const v = d.data();
-        let rowHtml = `<td>${v.name || "(무명)"}</td>`;
+        rows.push(v);
+    });
+    
+    rows.sort((a,b) => (b.score || 0) - (a.score || 0));
+
+    let tableHtml = "";
+    rows.forEach((v, index) => {
+        const rank = index + 1;
+        let rankIcon = rank;
+        if (rank === 1) rankIcon = '🥇';
+        if (rank === 2) rankIcon = '🥈';
+        if (rank === 3) rankIcon = '🥉';
+        
+        let rowHtml = `<tr class="rank-${rank}">`;
+        rowHtml += `<td class="rank-icon">${rankIcon}</td>`;
+        rowHtml += `<td>${v.name || "(무명)"}</td>`;
         for(let i=0; i < total; i++){
-            const q = doc.questions[i];
             const ans = v.answers?.[i];
             let result = "-";
             if (ans !== undefined) {
+                const q = doc.questions[i];
                 let isCorrect = q.type === "mcq" ? (ans === q.answer) : (String(ans||"").trim().toLowerCase() === String(q.answerText||"").trim().toLowerCase());
-                result = isCorrect ? "○" : "×";
+                result = isCorrect ? "✔️" : "❌";
             }
             rowHtml += `<td>${result}</td>`;
         }
         rowHtml += `<td>${v.score || 0}</td>`;
-        rows.push({ score: v.score || 0, html: rowHtml });
+        rowHtml += `</tr>`;
+        tableHtml += rowHtml;
     });
-    
-    rows.sort((a,b) => b.score - a.score);
-    els.resBody.innerHTML = rows.map(r => `<tr>${r.html}</tr>`).join("");
+
+    els.resBody.innerHTML = tableHtml;
 }
 
 async function refreshMyResult() {
@@ -505,14 +533,8 @@ function bindAdminEvents() {
     els.btnEnd.onclick = () => controlQuiz('end');
     els.btnExport.onclick = exportCSV;
     els.btnResetAll.onclick = resetAll;
-    els.btnTemplate.onclick = () => {
-        const csv = "\uFEFF문항,타입,정답,보기1,보기2,보기3,보기4\n예시객관식,mcq,2,보기1,정답,보기3,보기4\n예시주관식,short,정답텍스트";
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = CE('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = "quiz_template.csv";
-        link.click();
-    };
+    els.btnResetQ.onclick = resetQuestions;
+    els.btnTemplate.onclick = () => { alert("샘플양식 다운로드 기능은 준비 중입니다."); };
     els.btnUpload.onclick = () => alert("문항 업로드 기능은 준비 중입니다.");
 }
 
