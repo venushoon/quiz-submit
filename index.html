@@ -9,58 +9,61 @@
   <link rel="stylesheet" href="./app.css" />
 </head>
 <body>
-
-  <!-- 상단바/탭/패널 등, 기존 index(디자인).html의 마크업을 그대로 둡니다 -->
-  <!-- (여기엔 여러분의 완성된 레이아웃/ID 들이 이미 존재한다고 가정) -->
-
-  <!-- Firebase compat (반드시 app.js보다 먼저) -->
+<!-- Firebase compat (반드시 app.js보다 먼저) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-  <!-- Firestore를 모듈처럼 쓰기 위한 얇은 래퍼(window.FS) -->
   <script>
-    // 🔧 여기에 여러분 프로젝트의 실제 Firebase 설정을 입력하세요
-    const firebaseConfig = {
-      apiKey: "AIzaSyCClNc95ykYCudmLHTPgpewZ60bZ8zukbo",
-      authDomain: "live-quiz-a14d1.firebaseapp.com",
-      projectId: "live-quiz-a14d1"
-    };
-    firebase.initializeApp(firebaseConfig);
-    window.db = firebase.firestore();
+  // ✅ 여기에 본인의 Firebase 설정을 넣으세요
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+  };
+  // 1) Firebase 초기화
+  firebase.initializeApp(firebaseConfig);
+  // 2) 전역 Firestore 핸들
+  window.db = firebase.firestore();
 
-    // compat API를 모듈식으로 흉내 내는 래퍼
-    window.FS = {
-      doc: (...path) => {
-        // doc(db,"rooms",id)처럼 쓰고 싶어서 간단히 매핑
-        let ref = window.db;
-        for (let i = 0; i < path.length; i += 2) {
-          const col = path[i], id = path[i + 1];
-          ref = ref.collection(col);
-          if (id) ref = ref.doc(id);
-        }
-        return ref;
-      },
-      collection: (db, col, ...rest) => {
-        let ref = window.db.collection(col);
-        for (let i = 0; i < rest.length; i += 2) {
-          ref = ref.doc(rest[i]).collection(rest[i + 1]);
-        }
-        return ref;
-      },
-      setDoc: (ref, data, opt) => (opt && opt.merge) ? ref.set(data, { merge: true }) : ref.set(data),
-      getDoc: (ref) => ref.get(),
-      getDocs: (ref) => ref.get(),
-      onSnapshot: (ref, handler) => ref.onSnapshot(handler),
-      updateDoc: (ref, data) => ref.update(data),
-      runTransaction: (db, fn) => window.db.runTransaction(fn),
-      serverTimestamp: () => firebase.firestore.FieldValue.serverTimestamp()
-    };
-  </script>
+  // 3) app.js가 모듈 문법 없이 사용할 수 있도록 간단한 compat 래퍼 제공
+  //    - app.js는 아래 형태를 사용합니다: doc(window.db,"rooms",id) / collection(window.db,"rooms",id,"responses")
+  window.FS = {
+    doc: (dbOrFirst, ...rest) => {
+      // (window.db,"rooms","class1") 또는 ("rooms","class1") 모두 지원
+      let segments = [];
+      if (typeof dbOrFirst === "string") {
+        segments = [dbOrFirst, ...rest];
+      } else {
+        segments = rest;
+      }
+      let ref = window.db;
+      for (let i = 0; i < segments.length; i += 2) {
+        const col = segments[i];
+        const id  = segments[i+1];
+        ref = ref.collection(col);
+        if (id) ref = ref.doc(id);
+      }
+      return ref;
+    },
+    collection: (_db, ...segs) => {
+      let ref = window.db;
+      for (let i = 0; i < segs.length; i++) ref = (i===0) ? ref.collection(segs[i]) : ref.doc(segs[i]);
+      return ref; // app.js에서는 collection(window.db,"rooms",id,"responses")처럼 호출
+    },
+    setDoc     : (ref, data, opt) => (opt?.merge ? ref.set(data, {merge:true}) : ref.set(data)),
+    getDoc     : (ref) => ref.get(),
+    getDocs    : (ref) => ref.get(),
+    onSnapshot : (ref, cb) => ref.onSnapshot(cb),
+    updateDoc  : (ref, data) => ref.update(data),
+    runTransaction: (_db, fn) => window.db.runTransaction(fn),
+    serverTimestamp: () => firebase.firestore.FieldValue.serverTimestamp(),
+  };
+</script>
 
-  <!-- QR 코드 (반드시 app.js보다 먼저) -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<!-- QR 코드 (반드시 app.js보다 먼저) -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
-  <!-- 앱 스크립트 (항상 마지막, 단 한 번만 포함) -->
-  <script src="./app.js"></script>
+<!-- 앱 스크립트 (항상 마지막, 단 한 번만 포함) -->
+<script src="./app.js"></script>
 </body>
 </html>
