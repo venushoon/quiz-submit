@@ -12,6 +12,69 @@ function safeQRCode(canvasEl, text, opts = { width: 140 }) {
   if (!window.QRCode || !canvasEl) return;
   try { window.QRCode.toCanvas(canvasEl, text, opts); } catch(e) { console.warn(e); }
 }
+
+function initialRoute() {
+  const sp = new URLSearchParams(location.search);
+  const role = (sp.get("role") || "").toLowerCase();
+  const urlRoom = (sp.get("room") || "").trim();
+
+  if (role === "student") {
+    // 학생 진입: 관리자 UI 모두 숨김, 이름 입력 → 대기
+    setMode("student");                 // .admin-only 숨김, 학생 패널 노출
+    if (urlRoom) {
+      roomId = urlRoom;
+      listenRoom(roomId);
+      listenResponses(roomId);
+    }
+    // 학생은 첫 화면에 이름 입력 모달만
+    els.joinModal.classList.remove("hide");
+    els.sWrap.classList.add("hide");
+  } else {
+    // 기본은 관리자
+    setMode("admin");                   // 문항 탭으로
+    if (roomId) {                       // 로컬 저장값 있으면 자동 복구
+      connect();
+    } else {
+      showTab("build");                 // 첫 화면은 문항 탭
+    }
+  }
+}
+
+function buildStudentLink() {
+  if (!roomId || !els.studentLink) return;
+  const url = new URL(location.href);
+  url.searchParams.set("role", "student");
+  url.searchParams.set("room", roomId);
+  const s = url.toString();
+  els.studentLink.value = s;
+
+  // 여기만 써도 돼
+  safeQRCode(els.qrCanvas, s, { width: 140 });
+}
+
+async function startQuiz(){
+  if (!roomId) return alert("세션에 먼저 접속하세요.");
+  await updateDoc(doc(window.db, "rooms", roomId), {
+    mode: "active", currentIndex: 0, accept: true
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  // 로컬 복구
+  try {
+    const saved = JSON.parse(localStorage.getItem("quiz.live") || "{}");
+    if (saved.roomId) {
+      roomId = saved.roomId; els.roomId.value = roomId;
+    }
+  } catch {}
+
+  // 기본 심장박동 오프라인
+  heartbeatOnline(false);
+
+  // URL → 라우팅
+  initialRoute();
+});
+
 /* ========= quiz-submit / app.js (drop-in) =========
    - 기본 시작: 관리자 모드
    - 학생 링크: ?role=student&room=xxx
