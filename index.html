@@ -84,7 +84,14 @@
       <div id="qrCard" class="card hide">
         <h2>학생용 접속</h2>
         <img id="qrImg" class="qr" alt="학생용 접속 QR코드" src="">
-        <div class="row"><input id="studentLink" class="input grow" readonly /><button id="btnCopy" class="chip">복사</button><button id="btnOpen" class="chip">열기</button></div>
+        <div class="row">
+          <button id="btnToggleLink" class="chip">주소 보기</button>
+        </div>
+        <div id="studentLinkContainer" class="row mt-16 hide">
+            <input id="studentLink" class="input grow" readonly />
+            <button id="btnCopy" class="chip">복사</button>
+            <button id="btnOpen" class="chip">열기</button>
+        </div>
       </div>
     </div>
     <div id="participantCard" class="card hide">
@@ -109,7 +116,7 @@
       </div>
       <div class="timer-display"><span id="qCounter">Q0/0</span><span id="liveTimer">00:00</span></div>
     </div>
-    <div class="card">
+    <div class="card presentation-view">
       <h2 id="pTitle" class="title"></h2>
       <p id="presHint" class="muted">시작 버튼을 누르면 문항이 제시됩니다.</p>
       <div id="pWrap" class="pwrap hide">
