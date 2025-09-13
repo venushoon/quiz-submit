@@ -26,6 +26,13 @@
         }
         return ref;
       },
+      collection: (db, ...path) => {
+        let ref = db;
+        for (let i = 0; i < path.length; i++) {
+          ref = ref.collection(path[i]);
+        }
+        return ref;
+      },
       getDoc: (ref) => ref.get(),
       getDocs: (ref) => ref.get(),
       setDoc: (ref, data, opt) => opt?.merge ? ref.set(data, { merge: true }) : ref.set(data),
@@ -86,6 +93,10 @@
         <img id="qrImg" class="qr" alt="학생용 접속 QR코드" src="">
         <div class="row"><input id="studentLink" class="input grow" readonly /><button id="btnCopy" class="chip">복사</button><button id="btnOpen" class="chip">열기</button></div>
       </div>
+    </div>
+    <div id="participantCard" class="card hide">
+      <h2>접속한 학생 (<span id="participantCount">0</span>명)</h2>
+      <ul id="participantList"></ul>
     </div>
   </section>
 
