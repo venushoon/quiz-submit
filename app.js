@@ -165,7 +165,7 @@ async function saveQuestions() {
     const doc = await window.FS.getDoc(docRef);
     const currentQuestions = doc.exists ? doc.data().questions || [] : [];
     
-    const newQuestions = [...editQuestions.reverse(), ...currentQuestions];
+    const newQuestions = [...currentQuestions, ...editQuestions];
     const title = els.quizTitle.value || doc.data()?.title || "퀴즈";
 
     await window.FS.setDoc(docRef, { questions: newQuestions, title }, { merge: true });
@@ -443,18 +443,19 @@ function renderQuestionList(questions = []) {
     
     allQuestions.forEach((q, index) => {
         const item = CE("div", "item");
+        const isUnsaved = index < editQuestions.length;
+        const savedQuestionIndex = index - editQuestions.length;
+
         item.innerHTML = `<span class="item-text">${q.type === 'mcq' ? '[객관식]' : '[주관식]'} ${q.text}</span>`;
         const deleteBtn = CE("button", "delete-btn");
         deleteBtn.textContent = "×";
         deleteBtn.onclick = (e) => {
             e.stopPropagation();
-            const isUnsaved = index < editQuestions.length;
             if (isUnsaved) {
                 const originalIndex = editQuestions.length - 1 - index;
                 editQuestions.splice(originalIndex, 1);
                 renderQuestionList(questions);
             } else { 
-                const savedQuestionIndex = index - editQuestions.length;
                 deleteQuestion(savedQuestionIndex);
             }
         };
