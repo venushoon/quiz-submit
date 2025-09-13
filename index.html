@@ -8,13 +8,6 @@
   <!-- 디자인 유지용 CSS -->
   <link rel="stylesheet" href="app.css" />
 
-  <!-- QR 코드 (head 쪽에 선로딩: 간헐적 미로드 방지) -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-
-  <!-- Firebase compat (ESM 아님) -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
   <script>
     // 🔐 실제 프로젝트 값으로 교체
     const firebaseConfig = {
@@ -200,7 +193,29 @@
       <p id="sState" class="muted"></p>
     </section>
   </div>
+  <!-- 1) Firebase compat (항상 app → firestore 순) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
+<script>
+  // 필수: 네 프로젝트 설정으로 교체
+  const firebaseConfig = {
+    apiKey: "AIzaSyCClNc95ykYCudmLHTPgpewZ60bZ8zukbo", authDomain: "live-quiz-a14d1.firebaseapp.com", projectId: "live-quiz-a14d1",
+  };
+  // 전역 초기화 (app.js에서 window.firebase, window.db 사용)
+  window.firebaseApp = firebase.initializeApp(firebaseConfig);
+  window.db = firebase.firestore();
+  // Firestore API 단축(compat)을 app.js로 넘겨주기
+  window.FS = firebase.firestore;   // doc/collection/setDoc… 를 꺼내 쓸 수 있게
+  </script>
+
+<!-- 2) QR 코드 라이브러리 (app.js보다 먼저) -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+
+<!-- 3) 마지막에 앱 스크립트 -->
+  <script src="./app.js"></script>
+</body>
+</html>
   <!-- 앱 스크립트 -->
   <script src="app.js"></script>
 </body>
