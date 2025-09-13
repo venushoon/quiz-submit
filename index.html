@@ -37,8 +37,7 @@
       serverTimestamp: () => firebase.firestore.FieldValue.serverTimestamp()
     };
   </script>
-  
-  </head>
+</head>
 <body>
   <header class="topbar admin-only">
     <h1 class="brand">실시간 퀴즈</h1>
@@ -118,7 +117,7 @@
 
       <div class="card">
         <h2>학생용 접속</h2>
-        <canvas id="qrCanvas" class="qr"></canvas>
+        <img id="qrImg" class="qr" alt="학생용 접속 QR코드" src="">
         <div class="row">
           <input id="studentLink" class="input grow" readonly />
           <button id="btnCopy" class="chip">복사</button>
@@ -128,7 +127,7 @@
       </div>
     </div>
   </section>
-
+  
   <section id="panelPres" class="panel admin-only hide">
     <div class="card row">
       <button id="btnStart" class="btn green">시작</button>
