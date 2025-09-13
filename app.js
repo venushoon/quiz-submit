@@ -20,9 +20,9 @@ async function ensureFirebaseReady() {
   if (!firebase.apps.length) {
     // 👉 필요한 실제 설정으로 바꾸세요
     const cfg = {
-      apiKey:      "YOUR_API_KEY",
-      authDomain:  "YOUR_AUTH_DOMAIN",
-      projectId:   "YOUR_PROJECT_ID",
+      apiKey:      "AIzaSyCClNc95ykYCudmLHTPgpewZ60bZ8zukbo",
+      authDomain:  "live-quiz-a14d1.firebaseapp.com",
+      projectId:   "live-quiz-a14d1",
     };
     firebase.initializeApp(cfg);
   }
