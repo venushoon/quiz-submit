@@ -18,23 +18,21 @@
     };
     firebase.initializeApp(firebaseConfig);
     window.db = firebase.firestore();
-
-    // Firestore 래퍼(compat → 함수형처럼 사용)
     window.FS = {
       doc: (...path) => {
         let ref = window.db;
         for (let i = 0; i < path.length; i += 2) {
-          const col = path[i], id = path[i + 1];
-          ref = ref.collection(col);
-          if (id) ref = ref.doc(id);
+          ref = ref.collection(path[i]);
+          if (path[i + 1]) ref = ref.doc(path[i + 1]);
         }
         return ref;
       },
-      setDoc: (ref, data, opt) => opt?.merge ? ref.set(data, { merge: true }) : ref.set(data),
       getDoc: (ref) => ref.get(),
-      onSnapshot: (ref, cb) => ref.onSnapshot(cb),
+      getDocs: (ref) => ref.get(),
+      setDoc: (ref, data, opt) => opt?.merge ? ref.set(data, { merge: true }) : ref.set(data),
       updateDoc: (ref, data) => ref.update(data),
-      runTransaction: (db, fn) => window.db.runTransaction(fn),
+      onSnapshot: (ref, cb) => ref.onSnapshot(cb),
+      increment: (val) => firebase.firestore.FieldValue.increment(val),
       serverTimestamp: () => firebase.firestore.FieldValue.serverTimestamp()
     };
   </script>
@@ -63,7 +61,6 @@
         <li>객관식: 문항, 보기1~4, 정답번호(숫자)</li>
         <li>주관식: 문항, 주관식, 정답텍스트</li>
         <li>예) 가장 큰 행성? , 지구, 목성, 화성, 금성 , 2</li>
-        <li>문항 옆 이미지 업로드로 그림 포함 가능</li>
       </ul>
     </div>
 
@@ -101,99 +98,55 @@
     <div class="grid-2">
       <div class="card">
         <h2>제출 정책 & 진행</h2>
-        <div class="row">
-          <label><input type="radio" name="once" id="onceDevice" checked /> 기기당 1회</label>
-          <label><input type="radio" name="once" id="onceName" /> 실명당 1회</label>
-        </div>
-        <div class="row">
-          <label><input type="checkbox" id="allowSubmit" checked /> 제출 허용</label>
-          <label><input type="checkbox" id="openResult" /> 결과 공개</label>
-        </div>
-        <div class="row">
-          <label>타이머(초): <input id="timerSec" class="input w-96 ta-center" value="30" /></label>
-          <button id="btnOptSave" class="btn green">저장</button>
-          <button id="btnOptReset" class="btn danger">초기화</button>
-        </div>
+        <div class="row"><label><input type="radio" name="once" id="onceDevice" checked /> 기기당 1회</label><label><input type="radio" name="once" id="onceName" /> 실명당 1회</label></div>
+        <div class="row"><label><input type="checkbox" id="allowSubmit" checked /> 제출 허용</label><label><input type="checkbox" id="openResult" /> 결과 공개</label></div>
+        <div class="row"><label>타이머(초): <input id="timerSec" class="input w-96 ta-center" value="30" /></label><button id="btnOptSave" class="btn green">저장</button><button id="btnOptReset" class="btn danger">초기화</button></div>
       </div>
-
-      <div id="qrCard" class="card">
+      <div id="qrCard" class="card hide">
         <h2>학생용 접속</h2>
         <img id="qrImg" class="qr" alt="학생용 접속 QR코드" src="">
-        <div class="row">
-          <input id="studentLink" class="input grow" readonly />
-          <button id="btnCopy" class="chip">복사</button>
-          <button id="btnOpen" class="chip">열기</button>
-        </div>
-        <p class="muted">※ 옵션 저장 시 QR/링크가 갱신됩니다.</p>
+        <div class="row"><input id="studentLink" class="input grow" readonly /><button id="btnCopy" class="chip">복사</button><button id="btnOpen" class="chip">열기</button></div>
       </div>
     </div>
   </section>
 
   <section id="panelPres" class="panel admin-only hide">
     <div class="card row">
-      <button id="btnStart" class="btn green">시작</button>
-      <button id="btnPrev" class="btn">이전</button>
-      <button id="btnNext" class="btn">다음</button>
-      <button id="btnEnd" class="btn danger">종료</button>
-      <div class="chipbox">
-        <span class="chip">참가 <span id="chipJoin">0</span></span>
-        <span class="chip">제출 <span id="chipSubmit">0</span></span>
-        <span class="chip">정답 <span id="chipCorrect">0</span></span>
-        <span class="chip">오답 <span id="chipWrong">0</span></span>
-      </div>
+      <button id="btnStart" class="btn green">시작</button><button id="btnPrev" class="btn">이전</button><button id="btnNext" class="btn">다음</button><button id="btnEnd" class="btn danger">종료</button>
+      <div class="chipbox"><span class="chip">참가 <span id="chipJoin">0</span></span><span class="chip">제출 <span id="chipSubmit">0</span></span><span class="chip">정답 <span id="chipCorrect">0</span></span><span class="chip">오답 <span id="chipWrong">0</span></span></div>
       <div class="muted"> <span id="qCounter">Q0/0</span></div>
     </div>
-
     <div class="card">
-      <h2 id="pTitle" class="title">샘플 퀴즈</h2>
+      <h2 id="pTitle" class="title"></h2>
       <p id="presHint" class="muted">시작 버튼을 누르면 문항이 제시됩니다.</p>
-
       <div id="pWrap" class="pwrap hide">
-        <h3 id="pQText" class="qtitle"></h3>
-        <img id="pQImg" class="qimg hide" />
-        <div id="pOpts" class="opts"></div>
+        <h3 id="pQText" class="qtitle"></h3><img id="pQImg" class="qimg hide" /><div id="pOpts" class="opts"></div>
       </div>
     </div>
   </section>
 
   <section id="panelRes" class="panel admin-only hide">
     <div class="card">
-      <div class="row">
-        <button id="btnExport" class="chip">CSV 내보내기</button>
-        <button id="btnResetAll" class="btn danger">전체 초기화</button>
-      </div>
-      <table class="table" id="resultTable">
-        <thead id="resHead"><tr><th>이름</th><th>점수</th></tr></thead>
-        <tbody id="resBody"></tbody>
-      </table>
+      <div class="row"><button id="btnExport" class="chip">CSV 내보내기</button><button id="btnResetAll" class="btn danger">전체 초기화</button></div>
+      <table class="table" id="resultTable"><thead id="resHead"></thead><tbody id="resBody"></tbody></table>
     </div>
   </section>
 
   <section id="studentPanel" class="panel">
     <dialog id="joinDialog" class="card">
         <h2>퀴즈 참여</h2>
-        <div class="row">
-          <input id="joinName" class="input grow" placeholder="이름 또는 번호를 입력하세요!" />
-          <button id="btnJoin" class="btn">참가</button>
-        </div>
+        <div class="row"><input id="joinName" class="input grow" placeholder="이름 또는 번호를 입력하세요!" /><button id="btnJoin" class="btn">참가</button></div>
     </dialog>
-      
     <div id="sWrap" class="card hide">
-      <h2 id="sTitle">샘플 퀴즈</h2>
-      <p id="sState" class="muted">참가 완료! 교사가 시작하면 1번 문항이 표시됩니다.</p>
-
+      <h2 id="sTitle"></h2>
+      <p id="sState" class="muted"></p>
       <div id="sQBox" class="hide">
-        <h3 id="sQTitle" class="qtitle"></h3>
-        <img id="sQImg" class="qimg hide" />
+        <h3 id="sQTitle" class="qtitle"></h3><img id="sQImg" class="qimg hide" />
         <div id="sOptBox" class="opts"></div>
-        <div id="sShortWrap" class="row hide">
-          <input id="sShort" class="input grow" placeholder="정답을 입력하세요" />
-          <button id="btnShortSend" class="btn green">제출</button>
-        </div>
+        <div id="sShortWrap" class="row hide"><input id="sShort" class="input grow" placeholder="정답을 입력하세요" /><button id="btnShortSend" class="btn green">제출</button></div>
         <div id="sSubmitBox" class="mt-16"></div>
       </div>
     </div>
-
     <div id="sDone" class="card hide">
       <h2>퀴즈가 종료되었습니다!</h2>
       <button id="btnMyResult" class="btn">내 결과 보기</button>
