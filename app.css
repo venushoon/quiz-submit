@@ -38,16 +38,25 @@ a{color:#8ecbff}
 .qtitle{font-size:22px;margin:8px 0 10px}
 .opts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0}
 .opts .popt,.opts .sopt,.opts button{background:#152232;border:1px solid var(--line);border-radius:14px;padding:18px;font-size:18px;text-align:center;cursor:pointer}
+.opts .sopt.active { outline: 2px solid #4aa8ff; background: #1f3147; }
 .qimg{max-width:100%;border-radius:10px;margin:10px 0}
 
 .qedit .row{margin-top:10px}
 .qlist{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
 .qlist .item{padding:8px 10px;border:1px solid var(--line);border-radius:10px;margin:6px 0;background:#0d1420}
 
-.qr{width:220px;height:220px;background:#0d1420;border:1px dashed var(--line);border-radius:12px}
+.qr{width:220px;height:220px;background:#fff;border:1px solid var(--line);border-radius:12px; padding: 10px; box-sizing: content-box;}
 
 .table{width:100%;border-collapse:collapse;margin-top:12px}
 .table th,.table td{border:1px solid var(--line);padding:10px 12px;text-align:center}
 .title{margin:6px 0 10px;font-size:24px}
 
 .pwrap{min-height:140px}
+
+/* ===== 학생 화면 개선 ===== */
+#studentPanel .card {
+  color: var(--text); /* 명시적으로 텍스트 색상 지정 */
+}
+#myResult .table th, #myResult .table td {
+  text-align: center; /* 내 결과 보기 테이블 텍스트 중앙 정렬 */
+}
