@@ -17,6 +17,7 @@ const els = {
   allowSubmit: $("allowSubmit"), openResult: $("openResult"), brightMode: $("brightMode"),
   timerSec: $("timerSec"), btnOptSave: $("btnOptSave"),
   qrCard: $("qrCard"), qrImg: $("qrImg"), studentLink: $("studentLink"), btnCopy: $("btnCopy"), btnOpen: $("btnOpen"),
+  btnToggleLink: $("btnToggleLink"), studentLinkContainer: $("studentLinkContainer"),
   participantCard: $("participantCard"), participantCount: $("participantCount"), participantList: $("participantList"),
   btnStart: $("btnStart"), btnPrev: $("btnPrev"), btnNext: $("btnNext"), btnEnd: $("btnEnd"), btnReveal: $("btnReveal"),
   chipJoin: $("chipJoin"), chipSubmit: $("chipSubmit"), chipCorrect: $("chipCorrect"), chipWrong: $("chipWrong"),
@@ -60,8 +61,10 @@ function setTab(activeTabId) {
   if (participantUnsub) participantUnsub();
   if (activeTabId === 'tabOpt') {
     listenForParticipants();
+    els.qrCard.classList.remove('hide');
   } else {
     els.participantCard.classList.add('hide');
+    els.qrCard.classList.add('hide');
   }
 }
 
@@ -204,6 +207,7 @@ function makeBlank() {
 }
 
 function loadSample() {
+    if (editQuestions.length > 0 && !confirm("작성 중인 문항이 있습니다. 초기화하고 샘플을 불러올까요?")) return;
     makeBlank();
     editQuestions = [
         { type:"mcq", text:"가장 큰 행성은?", options:["지구","목성","화성","금성"], answer:1 },
@@ -464,6 +468,7 @@ function renderQuestionList(questions = []) {
     });
 }
 
+
 function renderSubmitButton(chosen) {
     els.sSubmitBox.innerHTML = "";
     const submitBtn = CE("button","btn green");
@@ -612,6 +617,10 @@ function bindAdminEvents() {
     els.btnReveal.onclick = () => controlQuiz('reveal');
     els.btnExport.onclick = exportCSV;
     els.btnResetAll.onclick = resetAll;
+    els.btnToggleLink.onclick = () => {
+        const isHidden = els.studentLinkContainer.classList.toggle('hide');
+        els.btnToggleLink.textContent = isHidden ? '주소 보기' : '주소 숨기기';
+    };
 }
 
 function bindStudentEvents() {
@@ -635,13 +644,14 @@ function init() {
         els.studentPanel.style.display = 'block';
         bindStudentEvents();
         if (ROOM) {
-            els.joinDialog.showModal();
             const docRef = window.FS.doc("rooms", ROOM);
-            roomUnsub = window.FS.onSnapshot(docRef, snap => {
-                if(snap.exists) {
-                    renderRoom(snap.data());
+            window.FS.getDoc(docRef).then(snap => {
+                if (snap.exists) {
+                    els.joinDialog.showModal();
+                    roomUnsub = window.FS.onSnapshot(docRef, docSnap => {
+                        if (docSnap.exists) renderRoom(docSnap.data());
+                    });
                 } else {
-                    els.joinDialog.close();
                     document.body.innerHTML = "<h1>세션이 존재하지 않거나 삭제되었습니다.</h1>";
                 }
             });
