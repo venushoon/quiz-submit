@@ -13,6 +13,7 @@ let participantUnsub = null;
 let editQuestions = [];
 let questionTimer = null;
 
+// ===== 초기 설정 =====
 const U = new URL(location.href);
 if ((U.searchParams.get("role")||"").toLowerCase() === "student" && U.searchParams.get("room")) {
   MODE = "student";
@@ -271,12 +272,10 @@ function exportCSV() {
 function toggleFullscreen() {
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen();
-        els.btnFullscreen.textContent = "전체화면 종료";
-    } else {
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-            els.btnFullscreen.textContent = "전체 화면";
-        }
+        els.btnFullscreen.textContent = "화면 복귀";
+    } else if (document.exitFullscreen) {
+        document.exitFullscreen();
+        els.btnFullscreen.textContent = "전체 화면";
     }
 }
 
@@ -286,10 +285,16 @@ async function joinStudent() {
     if(!name) { alert("이름을 입력하세요."); return; }
     const sid = getStudentId();
 
-    await window.FS.setDoc(window.FS.doc("rooms", ROOM, "responses", sid), {
-        name, joinedAt: window.FS.serverTimestamp(), deviceId: sid, answers:{}, score:0 
+    const roomRef = window.FS.doc("rooms", ROOM);
+    const respRef = window.FS.doc("rooms", ROOM, "responses", sid);
+
+    await window.db.runTransaction(async (transaction) => {
+        const respDoc = await transaction.get(respRef);
+        if (!respDoc.exists) {
+            transaction.set(respRef, { name, joinedAt: window.FS.serverTimestamp(), deviceId: sid, answers: {}, score: 0 });
+            transaction.update(roomRef, { 'counters.join': window.FS.increment(1) });
+        }
     });
-    await window.FS.updateDoc(window.FS.doc("rooms", ROOM), { 'counters.join': window.FS.increment(1) });
     
     els.joinDialog.close();
 }
@@ -297,48 +302,51 @@ async function joinStudent() {
 async function submitStudent(answerPayload) {
     const sid = getStudentId();
     const roomRef = window.FS.doc("rooms", ROOM);
-    const roomSnap = await window.FS.getDoc(roomRef);
-    if(!roomSnap.exists) return;
-    
-    const doc = roomSnap.data();
-    const qIdx = doc.currentIndex;
-    if(qIdx < 0 || !doc.accept) { alert("제출 시간이 아닙니다."); return; }
-
-    const q = doc.questions[qIdx];
     const respRef = window.FS.doc("rooms", ROOM, "responses", sid);
-    
-    const updateData = {};
-    updateData[`answers.${qIdx}`] = answerPayload;
 
-    let isCorrect = false;
-    if (q.type === "mcq") { isCorrect = (answerPayload === q.answer); } 
-    else { isCorrect = String(answerPayload || "").trim().toLowerCase() === String(q.answerText || "").trim().toLowerCase(); }
-    
-    if (isCorrect) {
-        updateData.score = window.FS.increment(1);
-    }
-    
     try {
-        await window.FS.updateDoc(respRef, updateData);
-    
-        const counterUpdate = { 'counters.submit': window.FS.increment(1) };
-        counterUpdate[isCorrect ? 'counters.correct' : 'counters.wrong'] = window.FS.increment(1);
-        await window.FS.updateDoc(roomRef, counterUpdate);
+        await window.db.runTransaction(async (transaction) => {
+            const roomDoc = await transaction.get(roomRef);
+            const respDoc = await transaction.get(respRef);
+            if (!roomDoc.exists || !respDoc.exists) { throw "세션 또는 참가자 정보가 없습니다."; }
 
-        if(doc.policy?.openResult) {
-            alert(isCorrect ? "정답입니다! ✅" : "오답입니다. ❌");
-        } else {
-            alert("제출 완료!");
-        }
-    } catch (e) {
-        if (e.code === 'not-found') {
-            alert("아직 참가 등록이 완료되지 않았습니다. 잠시 후 다시 시도해주세요.");
-        } else {
-            console.error("Submit Error:", e);
-            alert("제출 중 오류가 발생했습니다.");
-        }
+            const r = roomDoc.data();
+            const qIdx = r.currentIndex;
+            if (qIdx < 0 || !r.accept) {
+                alert("제출 시간이 아닙니다."); return;
+            }
+
+            const q = r.questions[qIdx];
+            const studentData = respDoc.data();
+            if (studentData.answers?.[qIdx] !== undefined) {
+                alert("이미 제출했습니다."); return;
+            }
+
+            let isCorrect = false;
+            if (q.type === "mcq") { isCorrect = (answerPayload === q.answer); }
+            else { isCorrect = String(answerPayload || "").trim().toLowerCase() === String(q.answerText || "").trim().toLowerCase(); }
+
+            const newAnswers = { ...studentData.answers, [qIdx]: answerPayload };
+            const newScore = studentData.score + (isCorrect ? 1 : 0);
+            
+            transaction.update(respRef, { answers: newAnswers, score: newScore });
+
+            const counterUpdate = { 'counters.submit': window.FS.increment(1) };
+            counterUpdate[isCorrect ? 'counters.correct' : 'counters.wrong'] = window.FS.increment(1);
+            transaction.update(roomRef, counterUpdate);
+            
+            if (r.policy?.openResult) {
+                setTimeout(() => alert(isCorrect ? "정답입니다! ✅" : "오답입니다. ❌"), 0);
+            } else {
+                setTimeout(() => alert("제출 완료!"), 0);
+            }
+        });
+    } catch (error) {
+        console.error("제출 트랜잭션 실패:", error);
+        alert("제출 중 오류가 발생했습니다. 다시 시도해주세요.");
     }
 }
+
 
 // ===== 렌더링 및 UI 업데이트 =====
 function renderRoom(r) {
@@ -690,7 +698,13 @@ function init() {
             const docRef = window.FS.doc("rooms", ROOM);
             window.FS.getDoc(docRef).then(snap => {
                 if (snap.exists) {
-                    els.joinDialog.showModal();
+                    if (snap.data().mode === 'ended') {
+                        els.sWrap.classList.add('hide');
+                        els.sDone.classList.remove('hide');
+                        refreshMyResult();
+                    } else {
+                        els.joinDialog.showModal();
+                    }
                     roomUnsub = window.FS.onSnapshot(docRef, docSnap => {
                         if (docSnap.exists) renderRoom(docSnap.data());
                     });
