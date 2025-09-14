@@ -138,6 +138,78 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.7); }
   border-radius: 16px;
 }
 
+/* ===== 유틸리티 보강 (문항 탭에서 사용 중) ===== */
+.grow { flex: 1 1 200px; min-width: 160px; }
+.w-120 { width: 120px !important; }
+.w-96  { width: 96px  !important; }
+.ta-center { text-align: center; }
+
+/* ===== 문항 탭 레이아웃 개선 ===== */
+/* 패널 폭(최대 1200px)은 그대로 두고, 카드가 패널을 꽉 채우도록 */
+#panelQ .card {
+  width: 100%;
+  max-width: 1200px;       /* 상단 메뉴와 동일한 상한 */
+  margin: 16px auto;       /* 좌우 중앙 + 여백 */
+  padding: 24px;           /* 카드 내부 여백 확대 */
+  border-radius: 16px;     /* 상단 UI와 톤 맞춤 */
+}
+
+/* 상단 입력/버튼 라인: 좌측 정렬 + 랩핑 */
+#panelQ .card > .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* 제목 인풋은 넓게, 버튼들은 자연스럽게 따라오게 */
+#panelQ #quizTitle {
+  min-width: 240px;
+}
+
+/* 편집 영역 폼 라인: 넉넉한 간격과 랩핑 */
+#panelQ .qedit .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  align-items: center;
+}
+
+/* 문항/타입/정답/파일/추가 버튼 라인에서 select·숫자칸은 고정폭 */
+#panelQ #qType { min-width: 120px; }
+#panelQ #qAnswer { min-width: 96px; }
+
+/* 보기 입력칸은 균등 배분 */
+#panelQ #mcqBox input.input {
+  flex: 1 1 200px;
+}
+
+/* 보기 줄과 문항 리스트 간격 */
+#panelQ #mcqBox { margin-top: 8px; }
+#panelQ #qList  { margin-top: 12px; }
+
+/* 문항 리스트 카드는 가독성 개선 */
+#panelQ .qlist .item {
+  padding: 12px 14px;
+  font-size: 15px;
+}
+
+/* 작은 화면(태블릿 이하)에서 세로 스택 */
+@media (max-width: 900px) {
+  #panelQ .card { padding: 20px; }
+  #panelQ .qedit .row,
+  #panelQ .card > .row { gap: 8px; }
+  #panelQ #qType { width: 140px; }
+  #panelQ #qAnswer { width: 110px; }
+}
+
+@media (max-width: 600px) {
+  /* 모바일: 문항/정답 라인도 자연스럽게 떨어지도록 */
+  #panelQ #quizTitle { min-width: 180px; }
+  #panelQ #qType, #panelQ #qAnswer { width: 48%; }
+}
+
 /* 전체화면 모드 스타일 */
 body:fullscreen .topbar, body:-webkit-full-screen .topbar { display: none !important; }
 body:fullscreen #panelPres, body:-webkit-full-screen #panelPres { height: 100vh; padding: 2rem; margin: 0; max-width: none;}
