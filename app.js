@@ -276,6 +276,13 @@ function toggleFullscreen() {
         document.exitFullscreen();
     }
 }
+document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) {
+        els.btnFullscreen.textContent = "전체 화면";
+    } else {
+        els.btnFullscreen.textContent = "화면 복귀";
+    }
+});
 
 // ===== 학생 플로우 =====
 async function joinStudent() {
@@ -656,7 +663,6 @@ function cacheDOMElements() {
         'sQImg', 'sOptBox', 'sShortWrap', 'sShort', 'btnShortSend', 'sSubmitBox', 'sDone', 'myResult'
     ];
     elementIds.forEach(id => {
-        // body는 id가 아니므로 예외 처리
         if (id === 'body') {
             els.body = document.body;
         } else {
@@ -666,6 +672,7 @@ function cacheDOMElements() {
     els.tabs = document.querySelectorAll('.tabs .tab');
     els.panels = document.querySelectorAll('.panel.admin-only');
 }
+
 
 function init() {
     cacheDOMElements();
