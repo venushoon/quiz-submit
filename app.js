@@ -278,6 +278,11 @@ function toggleFullscreen() {
         els.btnFullscreen.textContent = "전체 화면";
     }
 }
+document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) {
+        els.btnFullscreen.textContent = "전체 화면";
+    }
+});
 
 // ===== 학생 플로우 =====
 async function joinStudent() {
@@ -313,21 +318,24 @@ async function submitStudent(answerPayload) {
             const r = roomDoc.data();
             const qIdx = r.currentIndex;
             if (qIdx < 0 || !r.accept) {
-                alert("제출 시간이 아닙니다."); return;
+                // 이 alert는 타이머 등으로 인해 제출이 늦었을 때 표시될 수 있습니다.
+                // alert("제출 시간이 아닙니다."); 
+                return;
             }
 
             const q = r.questions[qIdx];
             const studentData = respDoc.data();
             if (studentData.answers?.[qIdx] !== undefined) {
-                alert("이미 제출했습니다."); return;
+                // alert("이미 제출했습니다."); // 중복 제출 시 조용히 무시
+                return;
             }
 
             let isCorrect = false;
             if (q.type === "mcq") { isCorrect = (answerPayload === q.answer); }
             else { isCorrect = String(answerPayload || "").trim().toLowerCase() === String(q.answerText || "").trim().toLowerCase(); }
-
+            
             const newAnswers = { ...studentData.answers, [qIdx]: answerPayload };
-            const newScore = studentData.score + (isCorrect ? 1 : 0);
+            const newScore = (studentData.score || 0) + (isCorrect ? 1 : 0);
             
             transaction.update(respRef, { answers: newAnswers, score: newScore });
 
@@ -343,7 +351,6 @@ async function submitStudent(answerPayload) {
         });
     } catch (error) {
         console.error("제출 트랜잭션 실패:", error);
-        alert("제출 중 오류가 발생했습니다. 다시 시도해주세요.");
     }
 }
 
@@ -487,7 +494,6 @@ function renderQuestionList(questions = []) {
     });
 }
 
-
 function renderSubmitButton(chosen) {
     els.sSubmitBox.innerHTML = "";
     const submitBtn = CE("button","btn green");
@@ -609,7 +615,8 @@ function listenForParticipants() {
     participantUnsub = window.FS.onSnapshot(responsesRef, (snapshot) => {
         const names = [];
         snapshot.forEach(doc => {
-            names.push(doc.data().name);
+            const data = doc.data();
+            if (data && data.name) names.push(data.name);
         });
         els.participantCount.textContent = names.length;
         els.participantList.innerHTML = names.map(name => `<li>${name}</li>`).join('');
