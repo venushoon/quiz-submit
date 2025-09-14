@@ -2,7 +2,7 @@
 const $ = (id) => document.getElementById(id);
 const CE = (tag, cls) => { const el = document.createElement(tag); if(cls) el.className = cls; return el; };
 
-// ===== DOM 엘리먼트 캐시 =====
+// ===== DOM 엘리먼트 캐시 (초기화 함수에서 채워짐) =====
 let els = {};
 
 // ===== 전역 상태 =====
@@ -415,7 +415,7 @@ function renderRoom(r) {
             els.sQBox.classList.add("hide");
             els.sState.textContent = "";
             els.sDone.classList.remove("hide");
-            els.btnMyResult.onclick = refreshMyResult; // 이벤트 바인딩
+            els.btnMyResult.onclick = refreshMyResult;
             refreshMyResult();
         } else if (r.mode !== 'active' || !q) {
             els.sState.textContent = "교사가 시작버튼을 누르면 퀴즈가 시작됩니다. 준비되었나요?";
@@ -667,6 +667,7 @@ function cacheDOMElements() {
     els.panels = document.querySelectorAll('.panel.admin-only');
 }
 
+
 function init() {
     cacheDOMElements();
 
@@ -694,7 +695,6 @@ function init() {
                         els.sWrap.classList.add('hide');
                         els.sDone.classList.remove('hide');
                         refreshMyResult();
-                        // 결과 화면이 표시된 후에 버튼 이벤트 연결
                         els.btnMyResult.onclick = refreshMyResult;
                     } else {
                         els.joinDialog.showModal();
