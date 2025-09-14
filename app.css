@@ -84,4 +84,4 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.7); }
 .option-label { font-weight: 600; min-width: 80px; }
 .option-controls { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;}
 .option-group .btn { margin-left: auto; }
-.guide-text { line-height: 1.8; }
+.guide-text { line-height: 1.8; font-size: 0.9em;}
