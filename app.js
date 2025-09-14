@@ -58,17 +58,16 @@ function setTab(activeTabId) {
   els.tabs.forEach(tab => tab.classList.toggle('active', tab.id === activeTabId));
   els.panels.forEach(panel => panel.classList.toggle('hide', panel.id !== `panel${activeTabId.slice(3)}`));
   
-  if (participantUnsub) {
-      participantUnsub();
-      participantUnsub = null;
-  }
+  if (participantUnsub) { participantUnsub(); participantUnsub = null; }
+
   if (activeTabId === 'tabOpt') {
     listenForParticipants();
+    els.qrCard.classList.remove('hide');
   } else {
     els.participantCard.classList.add('hide');
+    els.qrCard.classList.add('hide');
   }
 
-  // [요청 4] 결과 탭 자동 새로고침
   if (activeTabId === 'tabRes') {
     refreshResults();
   }
@@ -258,7 +257,6 @@ async function controlQuiz(action) {
         await window.FS.updateDoc(docRef, { mode: "active", currentIndex: 0, accept: true, revealed: -1 });
     } else if (action === 'end') {
         await window.FS.updateDoc(docRef, { mode: "ended", accept: false });
-        // [요청 1] 퀴즈 종료 시 결과 탭으로 이동
         setTab('tabRes');
     } else {
         const doc = await window.FS.getDoc(docRef);
@@ -341,7 +339,6 @@ async function submitStudent(answerPayload) {
     counterUpdate[isCorrect ? 'counters.correct' : 'counters.wrong'] = window.FS.increment(1);
     await window.FS.updateDoc(roomRef, counterUpdate);
 
-    // [요청 2] '결과 공개' 옵션에 따른 팝업 변경
     if(doc.policy?.openResult) {
         alert(isCorrect ? "정답입니다! ✅" : "오답입니다. ❌");
     } else {
@@ -413,10 +410,8 @@ function renderRoom(r) {
             els.sQBox.classList.add("hide");
             els.sState.textContent = "";
             els.sDone.classList.remove("hide");
-            // [요청 1] 학생 결과 자동 표시
-            if (r.policy?.openResult) refreshMyResult();
+            refreshMyResult();
         } else if (r.mode !== 'active' || !q) {
-            // [요청 1, 3] 학생 대기 화면 문구
             els.sState.textContent = "교사가 시작버튼을 누르면 퀴즈가 시작됩니다. 준비되었나요?";
             els.sQBox.classList.add("hide");
         } else if (!r.accept) {
@@ -596,6 +591,7 @@ async function refreshMyResult() {
 
     resultHtml += `</tbody></table>`;
     els.myResult.innerHTML = resultHtml;
+    els.myResult.classList.remove("hide");
 }
 
 function listenForParticipants() {
