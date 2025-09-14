@@ -28,7 +28,7 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:12px 0}
 .row{display:flex;gap:10px;align-items:center}
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-@media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
 .input{background:#0d1420;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 body.bright-mode .input { background: #f1f3f5; }
 .btn,.chip{background:var(--btn);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px 14px;cursor:pointer}
@@ -40,7 +40,9 @@ body.bright-mode .btn.green { color: #fff; }
 .muted{color:var(--muted);font-size:14px}
 
 .qtitle{font-size:28px; text-align: center; margin: 20px 0; font-weight: 600;}
-.presentation-view { min-height: 50vh; display: flex; flex-direction: column; justify-content: center;}
+/* [요청 2] 프레젠테이션 레이아웃 수정 */
+#panelPres { display: flex; flex-direction: column; }
+.presentation-view { flex-grow: 1; display: flex; flex-direction: column; justify-content: center;}
 #pWrap { width: 100%; }
 .opts{display:grid; grid-template-columns: 1fr 1fr; max-width: 800px; margin: 20px auto; gap:12px;}
 @media (max-width: 600px) { .opts { grid-template-columns: 1fr; } }
@@ -62,6 +64,7 @@ body.bright-mode .qlist .item { background: #f1f3f5; }
 .table{width:100%;border-collapse:collapse;margin-top:12px}
 .table th,.table td{border:1px solid var(--line);padding:10px 12px;text-align:center}
 
+.result-card { text-align: center; }
 .leaderboard tr.rank-1 { background-color: rgba(255, 215, 0, 0.2); }
 .leaderboard tr.rank-2 { background-color: rgba(192, 192, 192, 0.2); }
 .leaderboard tr.rank-3 { background-color: rgba(205, 127, 50, 0.2); }
