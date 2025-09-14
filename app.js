@@ -14,7 +14,7 @@ const els = {
   mcqBox: $("mcqBox"), opt1: $("opt1"), opt2: $("opt2"), opt3: $("opt3"), opt4: $("opt4"),
   btnAddQ: $("btnAddQ"), qList: $("qList"),
   onceDevice: $("onceDevice"), onceName: $("onceName"),
-  allowSubmit: $("allowSubmit"), openResult: $("openResult"), brightMode: $("brightMode"),
+  openResult: $("openResult"), brightMode: $("brightMode"),
   timerSec: $("timerSec"), btnOptSave: $("btnOptSave"),
   qrCard: $("qrCard"), qrImg: $("qrImg"), studentLink: $("studentLink"), btnCopy: $("btnCopy"), btnOpen: $("btnOpen"),
   btnToggleLink: $("btnToggleLink"), studentLinkContainer: $("studentLinkContainer"),
@@ -183,12 +183,13 @@ async function saveQuestions() {
 
 async function deleteQuestion(indexToDelete) {
     if (!ROOM) return;
-    if (!confirm(`${indexToDelete + 1}번 문항을 삭제하시겠습니까?`)) return;
     
     const docRef = window.FS.doc("rooms", ROOM);
     const doc = await window.FS.getDoc(docRef);
     if (doc.exists) {
         const questions = doc.data().questions || [];
+        const questionText = questions[indexToDelete]?.text.slice(0, 20);
+        if (!confirm(`'${questionText}...' 문항을 삭제하시겠습니까?`)) return;
         questions.splice(indexToDelete, 1);
         await window.FS.updateDoc(docRef, { questions: questions });
     }
@@ -231,8 +232,7 @@ async function saveOptions() {
         timer: Math.max(0, parseInt(els.timerSec.value,10) || 0),
         bright: els.brightMode.checked
     };
-    const accept = !!els.allowSubmit.checked;
-    await window.FS.setDoc(window.FS.doc("rooms", ROOM), { policy, accept }, { merge:true });
+    await window.FS.setDoc(window.FS.doc("rooms", ROOM), { policy }, { merge:true });
     buildStudentLink(ROOM);
     alert("옵션 저장 완료");
 }
@@ -360,7 +360,6 @@ function renderRoom(r) {
     els.qCounter.textContent = `Q${Math.max(0, cur + 1)}/${total}`;
     if(MODE === 'admin') {
       els.quizTitle.value = r.title || "";
-      els.allowSubmit.checked = r.accept;
       els.openResult.checked = r.policy?.openResult;
       els.brightMode.checked = r.policy?.bright;
       els.timerSec.value = r.policy?.timer || 30;
@@ -478,7 +477,6 @@ function renderQuestionList(questions = []) {
     });
 }
 
-
 function renderSubmitButton(chosen) {
     els.sSubmitBox.innerHTML = "";
     const submitBtn = CE("button","btn green");
@@ -591,7 +589,6 @@ async function refreshMyResult() {
 
     resultHtml += `</tbody></table>`;
     els.myResult.innerHTML = resultHtml;
-    els.myResult.classList.remove("hide");
 }
 
 function listenForParticipants() {
