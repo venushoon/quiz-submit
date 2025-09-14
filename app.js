@@ -620,6 +620,31 @@ function listenForParticipants() {
 }
 
 // ===== 초기화 및 이벤트 바인딩 =====
+function bindAdminEvents() {
+    els.tabs.forEach(tab => tab.addEventListener('click', () => setTab(tab.id)));
+    els.btnConnection.onclick = connect;
+    els.btnBlank.onclick = makeBlank;
+    els.btnSample.onclick = loadSample;
+    els.btnAddQ.onclick = addQuestionUI;
+    els.btnSaveQ.onclick = saveQuestions;
+    els.btnResetQ.onclick = resetQuestions;
+    els.btnOptSave.onclick = saveOptions;
+    els.btnCopy.onclick = () => navigator.clipboard.writeText(els.studentLink.value);
+    els.btnOpen.onclick = () => { if(els.studentLink.value) window.open(els.studentLink.value, "_blank"); };
+    els.btnStart.onclick = () => controlQuiz('start');
+    els.btnPrev.onclick = () => controlQuiz('prev');
+    els.btnNext.onclick = () => controlQuiz('next');
+    els.btnEnd.onclick = () => controlQuiz('end');
+    els.btnReveal.onclick = () => controlQuiz('reveal');
+    els.btnExport.onclick = exportCSV;
+    els.btnResetAll.onclick = resetAll;
+    els.btnToggleLink.onclick = () => {
+        const isHidden = els.studentLinkContainer.classList.toggle('hide');
+        els.btnToggleLink.textContent = isHidden ? '주소 보기' : '주소 숨기기';
+    };
+    els.btnFullscreen.onclick = toggleFullscreen;
+}
+
 function cacheDOMElements() {
     const elementIds = [
         'body', 'sessionInput', 'btnConnection', 'sessionStatus', 'tabQ', 'tabOpt', 'tabPres', 'tabRes',
@@ -653,33 +678,13 @@ function init() {
     if (MODE === 'admin') {
         document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
         els.studentPanel.style.display = 'none';
-        els.tabs.forEach(tab => tab.addEventListener('click', () => setTab(tab.id)));
-        els.btnConnection.onclick = connect;
-        els.btnBlank.onclick = makeBlank;
-        els.btnSample.onclick = loadSample;
-        els.btnAddQ.onclick = addQuestionUI;
-        els.btnSaveQ.onclick = saveQuestions;
-        els.btnResetQ.onclick = resetQuestions;
-        els.btnOptSave.onclick = saveOptions;
-        els.btnCopy.onclick = () => navigator.clipboard.writeText(els.studentLink.value);
-        els.btnOpen.onclick = () => { if(els.studentLink.value) window.open(els.studentLink.value, "_blank"); };
-        els.btnStart.onclick = () => controlQuiz('start');
-        els.btnPrev.onclick = () => controlQuiz('prev');
-        els.btnNext.onclick = () => controlQuiz('next');
-        els.btnEnd.onclick = () => controlQuiz('end');
-        els.btnReveal.onclick = () => controlQuiz('reveal');
-        els.btnExport.onclick = exportCSV;
-        els.btnResetAll.onclick = resetAll;
-        els.btnToggleLink.onclick = () => {
-            const isHidden = els.studentLinkContainer.classList.toggle('hide');
-            els.btnToggleLink.textContent = isHidden ? '주소 보기' : '주소 숨기기';
-        };
-        els.btnFullscreen.onclick = toggleFullscreen;
+        bindAdminEvents();
         setTab('tabQ');
     } else {
         document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
         els.studentPanel.style.display = 'block';
         
+        // 학생 모드에서는 필요한 이벤트만 선택적으로 연결
         els.btnJoin.onclick = joinStudent;
         
         if (ROOM) {
@@ -707,4 +712,5 @@ function init() {
     }
 }
 
+// [수정] DOMContentLoaded -> load 로 변경하여 모든 리소스 로딩 후 실행 보장
 window.addEventListener("load", init);
