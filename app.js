@@ -272,17 +272,10 @@ function exportCSV() {
 function toggleFullscreen() {
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen();
-        els.btnFullscreen.textContent = "화면 복귀";
     } else if (document.exitFullscreen) {
         document.exitFullscreen();
-        els.btnFullscreen.textContent = "전체 화면";
     }
 }
-document.addEventListener('fullscreenchange', () => {
-    if (!document.fullscreenElement) {
-        els.btnFullscreen.textContent = "전체 화면";
-    }
-});
 
 // ===== 학생 플로우 =====
 async function joinStudent() {
@@ -317,18 +310,11 @@ async function submitStudent(answerPayload) {
 
             const r = roomDoc.data();
             const qIdx = r.currentIndex;
-            if (qIdx < 0 || !r.accept) {
-                // 이 alert는 타이머 등으로 인해 제출이 늦었을 때 표시될 수 있습니다.
-                // alert("제출 시간이 아닙니다."); 
-                return;
-            }
+            if (qIdx < 0 || !r.accept) { return; }
 
             const q = r.questions[qIdx];
             const studentData = respDoc.data();
-            if (studentData.answers?.[qIdx] !== undefined) {
-                // alert("이미 제출했습니다."); // 중복 제출 시 조용히 무시
-                return;
-            }
+            if (studentData.answers?.[qIdx] !== undefined) { return; }
 
             let isCorrect = false;
             if (q.type === "mcq") { isCorrect = (answerPayload === q.answer); }
@@ -475,7 +461,7 @@ function renderQuestionList(questions = []) {
 
         item.innerHTML = `<span class="item-text">${q.type === 'mcq' ? '[객관식]' : '[주관식]'} ${q.text}</span>`;
         if (isUnsaved) {
-            item.innerHTML += `<span class="chip" style="margin-left:10px; font-size: 0.8em; padding: 2px 6px;">저장 안됨</span>`;
+            item.innerHTML += `<span class="chip" style="margin-left:auto; font-size: 0.8em; padding: 2px 6px;">저장 안됨</span>`;
         }
         const deleteBtn = CE("button", "delete-btn");
         deleteBtn.textContent = "×";
@@ -655,35 +641,25 @@ function bindStudentEvents() {
 }
 
 function cacheDOMElements() {
-    els.body = document.body;
-    els.sessionInput = $("sessionInput"); els.btnConnection = $("btnConnection"); els.sessionStatus = $("sessionStatus");
-    els.tabs = document.querySelectorAll('.tabs .tab'); els.panels = document.querySelectorAll('.panel.admin-only');
-    els.tabQ = $("tabQ"); els.tabOpt = $("tabOpt"); els.tabPres = $("tabPres"); els.tabRes = $("tabRes");
-    els.panelQ = $("panelQ"); els.panelOpt = $("panelOpt"); els.panelPres = $("panelPres"); els.panelRes = $("panelRes");
-    els.quizTitle = $("quizTitle"); els.btnBlank = $("btnBlank"); els.btnSample = $("btnSample"); els.btnSaveQ = $("btnSaveQ"); els.btnResetQ = $("btnResetQ");
-    els.qText = $("qText"); els.qType = $("qType"); els.qAnswer = $("qAnswer"); els.qImg = $("qImg");
-    els.mcqBox = $("mcqBox"); els.opt1 = $("opt1"); els.opt2 = $("opt2"); els.opt3 = $("opt3"); els.opt4 = $("opt4");
-    els.btnAddQ = $("btnAddQ"); els.qList = $("qList");
-    els.onceDevice = $("onceDevice"); els.onceName = $("onceName");
-    els.openResult = $("openResult"); els.brightMode = $("brightMode");
-    els.timerSec = $("timerSec"); els.btnOptSave = $("btnOptSave");
-    els.qrCard = $("qrCard"); els.qrImg = $("qrImg"); els.studentLink = $("studentLink"); els.btnCopy = $("btnCopy"); els.btnOpen = $("btnOpen");
-    els.btnToggleLink = $("btnToggleLink"); els.studentLinkContainer = $("studentLinkContainer");
-    els.participantCard = $("participantCard"); els.participantCount = $("participantCount"); els.participantList = $("participantList");
-    els.btnStart = $("btnStart"); els.btnPrev = $("btnPrev"); els.btnNext = $("btnNext"); els.btnEnd = $("btnEnd"); els.btnReveal = $("btnReveal"); els.btnFullscreen = $("btnFullscreen");
-    els.chipJoin = $("chipJoin"); els.chipSubmit = $("chipSubmit"); els.chipCorrect = $("chipCorrect"); els.chipWrong = $("chipWrong");
-    els.qCounter = $("qCounter"); els.liveTimer = $("liveTimer");
-    els.pTitle = $("pTitle"); els.presHint = $("presHint"); els.pWrap = $("pWrap"); els.pQText = $("pQText"); els.pQImg = $("pQImg"); els.pOpts = $("pOpts");
-    els.btnExport = $("btnExport"); els.btnResetAll = $("btnResetAll"); els.resHead = $("resHead"); els.resBody = $("resBody");
-    els.studentPanel = $("studentPanel");
-    els.joinDialog = $("joinDialog"); els.joinName = $("joinName"); els.btnJoin = $("btnJoin");
-    els.sWrap = $("sWrap"); els.sTitle = $("sTitle"); els.sState = $("sState"); els.sQBox = $("sQBox");
-    els.sQTitle = $("sQTitle"); els.sQImg = $("sQImg"); els.sOptBox = $("sOptBox");
-    els.sShortWrap = $("sShortWrap"); els.sShort = $("sShort"); els.sShortSend = $("sShortSend");
-    els.sSubmitBox = $("sSubmitBox");
-    els.sDone = $("sDone"); els.myResult = $("myResult");
+    const elementIds = [
+        'body', 'sessionInput', 'btnConnection', 'sessionStatus', 'tabQ', 'tabOpt', 'tabPres', 'tabRes',
+        'panelQ', 'panelOpt', 'panelPres', 'panelRes', 'quizTitle', 'btnBlank', 'btnSample', 'btnSaveQ',
+        'btnResetQ', 'qText', 'qType', 'qAnswer', 'qImg', 'mcqBox', 'opt1', 'opt2', 'opt3', 'opt4',
+        'btnAddQ', 'qList', 'onceDevice', 'onceName', 'openResult', 'brightMode', 'timerSec',
+        'btnOptSave', 'qrCard', 'qrImg', 'studentLink', 'btnCopy', 'btnOpen', 'btnToggleLink',
+        'studentLinkContainer', 'participantCard', 'participantCount', 'participantList', 'btnStart',
+        'btnPrev', 'btnNext', 'btnEnd', 'btnReveal', 'btnFullscreen', 'chipJoin', 'chipSubmit',
+        'chipCorrect', 'chipWrong', 'qCounter', 'liveTimer', 'pTitle', 'presHint', 'pWrap', 'pQText',
+        'pQImg', 'pOpts', 'btnExport', 'btnResetAll', 'resHead', 'resBody', 'studentPanel',
+        'joinDialog', 'joinName', 'btnJoin', 'sWrap', 'sTitle', 'sState', 'sQBox', 'sQTitle',
+        'sQImg', 'sOptBox', 'sShortWrap', 'sShort', 'btnShortSend', 'sSubmitBox', 'sDone', 'myResult'
+    ];
+    elementIds.forEach(id => {
+        els[id] = $(id);
+    });
+    els.tabs = document.querySelectorAll('.tabs .tab');
+    els.panels = document.querySelectorAll('.panel.admin-only');
 }
-
 
 function init() {
     cacheDOMElements();
