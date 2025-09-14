@@ -214,69 +214,94 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.7); }
 body:fullscreen .topbar, body:-webkit-full-screen .topbar { display: none !important; }
 body:fullscreen #panelPres, body:-webkit-full-screen #panelPres { height: 100vh; padding: 2rem; margin: 0; max-width: none;}
 
-/* ===== 옵션 탭: 3단 그리드 + 가이드 전체폭 (최종) ===== */
+/* ===== 옵션 탭: 3단 균등 + 제목/버튼/QR 크기 조정 (최종) ===== */
 
-/* 패널 폭을 상단 메뉴와 동일하게 중앙 정렬 */
+/* 패널 폭 중앙 정렬 */
 #panelOpt { max-width: 1200px; margin-inline: auto; }
 
-/* 기본(태블릿 이하): 1열 */
+/* 기본: 1열 */
 #panelOpt .grid-2 {
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
+  align-items: stretch;
 }
 
-/* 큰 화면: 3단 (옵션 | QR | 참가자), 가이드는 2번째 행 전체폭 */
+/* 큰 화면: 3단(같은 너비) */
 @media (min-width: 1100px) {
   #panelOpt .grid-2 {
-    /* 칼럼 비율은 화면에 맞춰 자동으로 늘어나도록 minmax 사용 */
-    grid-template-columns:
-      minmax(360px, 1.2fr)   /* 옵션 설정 */
-      minmax(320px, 1fr)     /* QR */
-      minmax(260px, 0.8fr);  /* 참가자 */
-    grid-auto-rows: auto;
-    align-items: start;
+    grid-template-columns: repeat(3, minmax(320px, 1fr)); /* 같은 폭의 세 칼럼 */
+    align-items: stretch;  /* 카드 높이를 동일하게 */
   }
-
-  /* 래퍼(div)들을 평탄화해서 내부 카드가 직접 그리드에 놓이도록 */
+  /* 래퍼 평탄화: 자식 카드들을 그리드 직접 배치 */
   #panelOpt .grid-2 > div { display: contents; }
 
-  /* 1행 배치 지정 */
+  /* 1행 배치 */
   #panelOpt .option-card { grid-column: 1; grid-row: 1; }
-  #panelOpt #qrCard      { grid-column: 2; grid-row: 1; }
+  #panelOpt #qrCard { grid-column: 2; grid-row: 1; }
   #panelOpt #participantCard { grid-column: 3; grid-row: 1; }
 
-  /* 가이드는 2행 전체 폭 */
+  /* 2행: 교사용 가이드 전체폭 */
   #panelOpt .grid-2 .card:not(.option-card):not(#qrCard):not(#participantCard) {
-    grid-column: 1 / -1;    /* 1~3열 전체 */
+    grid-column: 1 / -1;
     grid-row: 2;
   }
 }
 
-/* 카드 톤/여백 통일 */
-#panelOpt .card { padding: 24px; border-radius: 16px; }
-
-/* 옵션 카드 내부 여백/간격 */
-#panelOpt .option-card h2 { margin: 0 0 14px 0; }
-#panelOpt .option-card .option-group { margin-bottom: 14px; }
-#panelOpt .option-card .option-controls { gap: 16px; }
-
-/* QR 카드 크기/링크 줄 정돈 */
-#panelOpt #qrCard .qr {
-  width: 100%;
-  max-width: 360px;
-  height: auto;
-  display: block;
-  margin: 8px auto 0;
+/* 중간 화면: 2단 */
+@media (min-width: 900px) and (max-width: 1099px) {
+  #panelOpt .grid-2 {
+    grid-template-columns: repeat(2, minmax(320px, 1fr));
+  }
+  #panelOpt .grid-2 > div { display: contents; }
+  #panelOpt .option-card { grid-column: 1; }
+  #panelOpt #qrCard { grid-column: 2; }
+  #panelOpt #participantCard { grid-column: 1; }
+  #panelOpt .grid-2 .card:not(.option-card):not(#qrCard):not(#participantCard) { grid-column: 1 / -1; }
 }
+
+/* 카드 공통: 같은 높이로 늘어나기 */
+#panelOpt .card { height: 100%; padding: 22px; border-radius: 16px; }
+
+/* 1) 제목 작게/고정, 줄바꿈 방지 */
+#panelOpt .card > h2 {
+  font-size: clamp(18px, 1.6vw, 22px);  /* 화면에 맞게 작아짐 */
+  line-height: 1.25;
+  margin: 0 0 12px 0;
+  white-space: nowrap;                  /* 제목은 한 줄 고정 */
+  overflow: hidden; text-overflow: ellipsis;
+}
+
+/* 2) 버튼/칩/라벨 줄바꿈 방지 */
+#panelOpt .btn, 
+#panelOpt .chip, 
+#panelOpt .option-card label {
+  white-space: nowrap;
+}
+
+/* 옵션 컨트롤 간격(꺾임 최소화) */
+#panelOpt .option-card .option-group { margin-bottom: 12px; }
+#panelOpt .option-card .option-controls { gap: 18px; }
+
+/* 3) QR 이미지 더 작게 + 유동 크기 */
+#panelOpt #qrCard .qr {
+  display: block;
+  margin: 6px auto 0;
+  width: min(260px, 90%);   /* 기본 260px, 카드 폭 좁으면 90% */
+  height: auto;
+  border-radius: 12px;
+}
+
+/* 링크 행은 줄바꿈 없이, 인풋만 늘어나도록 */
+#panelOpt #studentLinkContainer { gap: 8px; flex-wrap: nowrap; }
 #panelOpt #studentLinkContainer .input { flex: 1 1 auto; min-width: 220px; }
 
-/* 참가자 리스트 스크롤 영역 */
-#panelOpt #participantList { max-height: 480px; overflow: auto; padding-right: 4px; }
+/* 참가자 리스트 스크롤 높이 */
+#panelOpt #participantList { max-height: 420px; overflow: auto; padding-right: 4px; }
 #panelOpt #participantList li { font-size: 0.95em; }
 
-/* 태블릿(<=900px): 1열로 자연스럽게 접힘 */
-@media (max-width: 900px) {
-  #panelOpt .grid-2 { grid-template-columns: 1fr; }
-  #panelOpt .grid-2 > div { display: block; } /* 평탄화 해제 */
+/* 작은 화면으로 갈수록 버튼/칩이 커지지 않게 */
+@media (max-width: 600px) {
+  #panelOpt .card > h2 { font-size: 18px; }
+  #panelOpt #studentLinkContainer .input { min-width: 160px; }
 }
