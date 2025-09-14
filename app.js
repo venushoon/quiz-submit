@@ -2,38 +2,8 @@
 const $ = (id) => document.getElementById(id);
 const CE = (tag, cls) => { const el = document.createElement(tag); if(cls) el.className = cls; return el; };
 
-// ===== DOM 엘리먼트 캐시 =====
-const els = {
-  body: document.body,
-  sessionInput: $("sessionInput"), btnConnection: $("btnConnection"), sessionStatus: $("sessionStatus"),
-  tabs: document.querySelectorAll('.tabs .tab'), panels: document.querySelectorAll('.panel.admin-only'),
-  tabQ: $("tabQ"), tabOpt: $("tabOpt"), tabPres: $("tabPres"), tabRes: $("tabRes"),
-  panelQ: $("panelQ"), panelOpt: $("panelOpt"), panelPres: $("panelPres"), panelRes: $("panelRes"),
-  quizTitle: $("quizTitle"), btnBlank: $("btnBlank"), btnSample: $("btnSample"), btnSaveQ: $("btnSaveQ"), btnResetQ: $("btnResetQ"),
-  qText: $("qText"), qType: $("qType"), qAnswer: $("qAnswer"), qImg: $("qImg"),
-  mcqBox: $("mcqBox"), opt1: $("opt1"), opt2: $("opt2"), opt3: $("opt3"), opt4: $("opt4"),
-  btnAddQ: $("btnAddQ"), qList: $("qList"),
-  onceDevice: $("onceDevice"), onceName: $("onceName"),
-  openResult: $("openResult"), brightMode: $("brightMode"),
-  timerSec: $("timerSec"), btnOptSave: $("btnOptSave"),
-  qrCard: $("qrCard"), qrImg: $("qrImg"), studentLink: $("studentLink"), btnCopy: $("btnCopy"), btnOpen: $("btnOpen"),
-  btnToggleLink: $("btnToggleLink"), studentLinkContainer: $("studentLinkContainer"),
-  participantCard: $("participantCard"), participantCount: $("participantCount"), participantList: $("participantList"),
-  btnStart: $("btnStart"), btnPrev: $("btnPrev"), btnNext: $("btnNext"), btnEnd: $("btnEnd"), btnReveal: $("btnReveal"),
-  chipJoin: $("chipJoin"), chipSubmit: $("chipSubmit"), chipCorrect: $("chipCorrect"), chipWrong: $("chipWrong"),
-  qCounter: $("qCounter"), liveTimer: $("liveTimer"),
-  pTitle: $("pTitle"), presHint: $("presHint"), pWrap: $("pWrap"), pQText: $("pQText"), pQImg: $("pQImg"), pOpts: $("pOpts"),
-  btnExport: $("btnExport"), btnResetAll: $("btnResetAll"), resHead: $("resHead"), resBody: $("resBody"),
-  studentPanel: $("studentPanel"),
-  joinDialog: $("joinDialog"), joinName: $("joinName"), btnJoin: $("btnJoin"),
-  sWrap: $("sWrap"), sTitle: $("sTitle"), sState: $("sState"), sQBox: $("sQBox"),
-  sQTitle: $("sQTitle"), sQImg: $("sQImg"), sOptBox: $("sOptBox"),
-  sShortWrap: $("sShortWrap"), sShort: $("sShort"), btnShortSend: $("btnShortSend"),
-  sSubmitBox: $("sSubmitBox"),
-  sDone: $("sDone"), myResult: $("myResult")
-};
-
 // ===== 전역 상태 =====
+let els = {}; // DOM 엘리먼트는 init 함수에서 캐시
 let ROOM = null;
 let MODE = "admin";
 let roomUnsub = null;
@@ -41,6 +11,7 @@ let participantUnsub = null;
 let editQuestions = [];
 let questionTimer = null;
 
+// ===== 초기 설정 =====
 const U = new URL(location.href);
 if ((U.searchParams.get("role")||"").toLowerCase() === "student" && U.searchParams.get("room")) {
   MODE = "student";
@@ -459,7 +430,12 @@ function renderQuestionList(questions = []) {
         const isUnsaved = index < editQuestions.length;
         const savedQuestionIndex = index - editQuestions.length;
 
-        item.innerHTML = `<span class="item-text">${q.type === 'mcq' ? '[객관식]' : '[주관식]'} ${q.text}</span>`;
+        let displayText = `<span class="item-text">${q.type === 'mcq' ? '[객관식]' : '[주관식]'} ${q.text}</span>`;
+        if (isUnsaved) {
+            displayText += `<span class="chip" style="margin-left:10px; font-size: 0.8em; padding: 2px 6px;">저장 안됨</span>`;
+        }
+        item.innerHTML = displayText;
+
         const deleteBtn = CE("button", "delete-btn");
         deleteBtn.textContent = "×";
         deleteBtn.onclick = (e) => {
@@ -476,6 +452,7 @@ function renderQuestionList(questions = []) {
         els.qList.appendChild(item);
     });
 }
+
 
 function renderSubmitButton(chosen) {
     els.sSubmitBox.innerHTML = "";
@@ -635,7 +612,40 @@ function bindStudentEvents() {
     els.sShortSend.onclick = () => submitStudent(els.sShort.value);
 }
 
+function cacheDOMElements() {
+    els.body = document.body;
+    els.sessionInput = $("sessionInput"); els.btnConnection = $("btnConnection"); els.sessionStatus = $("sessionStatus");
+    els.tabs = document.querySelectorAll('.tabs .tab'); els.panels = document.querySelectorAll('.panel.admin-only');
+    els.tabQ = $("tabQ"); els.tabOpt = $("tabOpt"); els.tabPres = $("tabPres"); els.tabRes = $("tabRes");
+    els.panelQ = $("panelQ"); els.panelOpt = $("panelOpt"); els.panelPres = $("panelPres"); els.panelRes = $("panelRes");
+    els.quizTitle = $("quizTitle"); els.btnBlank = $("btnBlank"); els.btnSample = $("btnSample"); els.btnSaveQ = $("btnSaveQ"); els.btnResetQ = $("btnResetQ");
+    els.qText = $("qText"); els.qType = $("qType"); els.qAnswer = $("qAnswer"); els.qImg = $("qImg");
+    els.mcqBox = $("mcqBox"); els.opt1 = $("opt1"); els.opt2 = $("opt2"); els.opt3 = $("opt3"); els.opt4 = $("opt4");
+    els.btnAddQ = $("btnAddQ"); els.qList = $("qList");
+    els.onceDevice = $("onceDevice"); els.onceName = $("onceName");
+    els.openResult = $("openResult"); els.brightMode = $("brightMode");
+    els.timerSec = $("timerSec"); els.btnOptSave = $("btnOptSave");
+    els.qrCard = $("qrCard"); els.qrImg = $("qrImg"); els.studentLink = $("studentLink"); els.btnCopy = $("btnCopy"); els.btnOpen = $("btnOpen");
+    els.btnToggleLink = $("btnToggleLink"); els.studentLinkContainer = $("studentLinkContainer");
+    els.participantCard = $("participantCard"); els.participantCount = $("participantCount"); els.participantList = $("participantList");
+    els.btnStart = $("btnStart"); els.btnPrev = $("btnPrev"); els.btnNext = $("btnNext"); els.btnEnd = $("btnEnd"); els.btnReveal = $("btnReveal");
+    els.chipJoin = $("chipJoin"); els.chipSubmit = $("chipSubmit"); els.chipCorrect = $("chipCorrect"); els.chipWrong = $("chipWrong");
+    els.qCounter = $("qCounter"); els.liveTimer = $("liveTimer");
+    els.pTitle = $("pTitle"); els.presHint = $("presHint"); els.pWrap = $("pWrap"); els.pQText = $("pQText"); els.pQImg = $("pQImg"); els.pOpts = $("pOpts");
+    els.btnExport = $("btnExport"); els.btnResetAll = $("btnResetAll"); els.resHead = $("resHead"); els.resBody = $("resBody");
+    els.studentPanel = $("studentPanel");
+    els.joinDialog = $("joinDialog"); els.joinName = $("joinName"); els.btnJoin = $("btnJoin");
+    els.sWrap = $("sWrap"); els.sTitle = $("sTitle"); els.sState = $("sState"); els.sQBox = $("sQBox");
+    els.sQTitle = $("sQTitle"); els.sQImg = $("sQImg"); els.sOptBox = $("sOptBox");
+    els.sShortWrap = $("sShortWrap"); els.sShort = $("sShort"); els.sShortSend = $("btnShortSend");
+    els.sSubmitBox = $("sSubmitBox");
+    els.sDone = $("sDone"); els.myResult = $("myResult");
+}
+
+
 function init() {
+    cacheDOMElements();
+
     if (!window.firebase || !window.db) {
         alert("Firebase 라이브러리 로딩에 실패했습니다."); return;
     }
