@@ -653,6 +653,7 @@ function init() {
     if (MODE === 'admin') {
         document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'flex');
         els.studentPanel.style.display = 'none';
+        
         els.tabs.forEach(tab => tab.addEventListener('click', () => setTab(tab.id)));
         els.btnConnection.onclick = connect;
         els.btnBlank.onclick = makeBlank;
@@ -676,6 +677,7 @@ function init() {
         };
         els.btnFullscreen.onclick = toggleFullscreen;
         setTab('tabQ');
+
     } else {
         document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
         els.studentPanel.style.display = 'block';
