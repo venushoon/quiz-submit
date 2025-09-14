@@ -75,12 +75,44 @@
 
   <section id="panelOpt" class="panel admin-only hide">
     <div class="grid-2">
-      <div class="card">
-        <h2>제출 정책 & 진행</h2>
-        <div class="row"><label><input type="radio" name="once" id="onceDevice" checked /> 기기당 1회</label><label><input type="radio" name="once" id="onceName" /> 실명당 1회</label></div>
-        <div class="row"><label><input type="checkbox" id="allowSubmit" checked /> 제출 허용</label><label><input type="checkbox" id="openResult" /> 결과 공개</label><label><input type="checkbox" id="brightMode" /> 프레젠테이션 밝은 모드</label></div>
-        <div class="row"><label>문항별 타이머(초): <input id="timerSec" class="input w-96 ta-center" value="30" /></label><button id="btnOptSave" class="btn green">저장</button></div>
+      <div class="card option-card">
+        <h2>퀴즈 옵션 설정</h2>
+        <div class="option-group">
+          <label class="option-label">제출 정책</label>
+          <div class="option-controls">
+            <label><input type="radio" name="once" id="onceDevice" checked /> 기기당 1회</label>
+            <label><input type="radio" name="once" id="onceName" /> 실명당 1회</label>
+          </div>
+        </div>
+        <div class="option-group">
+            <label class="option-label">진행 옵션</label>
+            <div class="option-controls">
+                <label><input type="checkbox" id="allowSubmit" checked /> 제출 허용</label>
+                <label><input type="checkbox" id="openResult" /> 즉시 정/오답 공개</label>
+                <label><input type="checkbox" id="brightMode" /> 밝은 화면 모드</label>
+            </div>
+        </div>
+        <div class="option-group">
+            <label class="option-label">타이머 (초)</label>
+            <div class="option-controls">
+                <input id="timerSec" class="input w-96 ta-center" value="30" />
+            </div>
+        </div>
+        <div class="option-group">
+            <button id="btnOptSave" class="btn green">옵션 저장</button>
+        </div>
       </div>
+      <div class="card">
+        <h2>교사용 가이드</h2>
+        <p class="muted guide-text">
+          - <b>제출 허용</b>: 체크 해제 시 학생들이 답을 제출할 수 없습니다.<br>
+          - <b>즉시 정/오답 공개</b>: 학생이 답 제출 시 바로 정답/오답 팝업을 보여줍니다.<br>
+          - <b>밝은 화면 모드</b>: 프레젠테이션과 학생 화면을 밝은 테마로 변경합니다.<br>
+          - <b>타이머</b>: 각 문항이 표시될 때 적용되는 제한 시간입니다.
+        </p>
+      </div>
+    </div>
+    <div class="grid-2">
       <div id="qrCard" class="card hide">
         <h2>학생용 접속</h2>
         <img id="qrImg" class="qr" alt="학생용 접속 QR코드" src="">
@@ -93,10 +125,10 @@
             <button id="btnOpen" class="chip">열기</button>
         </div>
       </div>
-    </div>
-    <div id="participantCard" class="card hide">
-      <h2>접속한 학생 (<span id="participantCount">0</span>명)</h2>
-      <ul id="participantList"></ul>
+      <div id="participantCard" class="card hide">
+        <h2>접속한 학생 (<span id="participantCount">0</span>명)</h2>
+        <ul id="participantList"></ul>
+      </div>
     </div>
   </section>
 
@@ -149,8 +181,7 @@
     </div>
     <div id="sDone" class="card hide">
       <h2>퀴즈가 종료되었습니다!</h2>
-      <button id="btnMyResult" class="btn">내 결과 보기</button>
-      <div id="myResult" class="mt-16 hide"></div>
+      <div id="myResult" class="mt-16"></div>
     </div>
   </section>
 
