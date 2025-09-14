@@ -415,6 +415,7 @@ function renderRoom(r) {
             els.sQBox.classList.add("hide");
             els.sState.textContent = "";
             els.sDone.classList.remove("hide");
+            els.myResult.classList.remove('hide');
             refreshMyResult();
         } else if (r.mode !== 'active' || !q) {
             els.sState.textContent = "교사가 시작버튼을 누르면 퀴즈가 시작됩니다. 준비되었나요?";
@@ -566,6 +567,7 @@ async function refreshResults() {
 }
 
 async function refreshMyResult() {
+    els.myResult.classList.remove('hide');
     const sid = getStudentId();
     const respSnap = await window.FS.getDoc(window.FS.doc("rooms", ROOM, "responses", sid));
     if(!respSnap.exists){ els.myResult.innerHTML = "제출 기록이 없습니다."; return; }
@@ -617,35 +619,36 @@ function listenForParticipants() {
 }
 
 // ===== 초기화 및 이벤트 바인딩 =====
-function bindAdminEvents() {
-    els.tabs.forEach(tab => tab.addEventListener('click', () => setTab(tab.id)));
-    els.btnConnection.onclick = connect;
-    els.btnBlank.onclick = makeBlank;
-    els.btnSample.onclick = loadSample;
-    els.btnAddQ.onclick = addQuestionUI;
-    els.btnSaveQ.onclick = saveQuestions;
-    els.btnResetQ.onclick = resetQuestions;
-    els.btnOptSave.onclick = saveOptions;
-    els.btnCopy.onclick = () => navigator.clipboard.writeText(els.studentLink.value);
-    els.btnOpen.onclick = () => { if(els.studentLink.value) window.open(els.studentLink.value, "_blank"); };
-    els.btnStart.onclick = () => controlQuiz('start');
-    els.btnPrev.onclick = () => controlQuiz('prev');
-    els.btnNext.onclick = () => controlQuiz('next');
-    els.btnEnd.onclick = () => controlQuiz('end');
-    els.btnReveal.onclick = () => controlQuiz('reveal');
-    els.btnExport.onclick = exportCSV;
-    els.btnResetAll.onclick = resetAll;
-    els.btnToggleLink.onclick = () => {
-        const isHidden = els.studentLinkContainer.classList.toggle('hide');
-        els.btnToggleLink.textContent = isHidden ? '주소 보기' : '주소 숨기기';
-    };
-    els.btnFullscreen.onclick = toggleFullscreen;
-}
-
-function bindStudentEvents() {
-    els.btnJoin.onclick = joinStudent;
-    els.sShortSend.onclick = () => submitStudent(els.sShort.value);
-    els.btnMyResult.onclick = refreshMyResult;
+function bindEvents() {
+    // Admin Events
+    if (MODE === 'admin') {
+        els.tabs.forEach(tab => tab.addEventListener('click', () => setTab(tab.id)));
+        els.btnConnection.onclick = connect;
+        els.btnBlank.onclick = makeBlank;
+        els.btnSample.onclick = loadSample;
+        els.btnAddQ.onclick = addQuestionUI;
+        els.btnSaveQ.onclick = saveQuestions;
+        els.btnResetQ.onclick = resetQuestions;
+        els.btnOptSave.onclick = saveOptions;
+        els.btnCopy.onclick = () => navigator.clipboard.writeText(els.studentLink.value);
+        els.btnOpen.onclick = () => { if(els.studentLink.value) window.open(els.studentLink.value, "_blank"); };
+        els.btnStart.onclick = () => controlQuiz('start');
+        els.btnPrev.onclick = () => controlQuiz('prev');
+        els.btnNext.onclick = () => controlQuiz('next');
+        els.btnEnd.onclick = () => controlQuiz('end');
+        els.btnReveal.onclick = () => controlQuiz('reveal');
+        els.btnExport.onclick = exportCSV;
+        els.btnResetAll.onclick = resetAll;
+        els.btnToggleLink.onclick = () => {
+            const isHidden = els.studentLinkContainer.classList.toggle('hide');
+            els.btnToggleLink.textContent = isHidden ? '주소 보기' : '주소 숨기기';
+        };
+        els.btnFullscreen.onclick = toggleFullscreen;
+    } 
+    // Student Events (필요한 시점에 개별적으로 바인딩)
+    else {
+        els.btnJoin.onclick = joinStudent;
+    }
 }
 
 function cacheDOMElements() {
@@ -673,7 +676,6 @@ function cacheDOMElements() {
     els.panels = document.querySelectorAll('.panel.admin-only');
 }
 
-
 function init() {
     cacheDOMElements();
 
@@ -689,7 +691,10 @@ function init() {
     } else {
         document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
         els.studentPanel.style.display = 'block';
-        bindStudentEvents();
+        
+        // 학생 모드에서는 필요한 이벤트만 먼저 바인딩
+        els.btnJoin.onclick = joinStudent;
+
         if (ROOM) {
             const docRef = window.FS.doc("rooms", ROOM);
             window.FS.getDoc(docRef).then(snap => {
@@ -698,6 +703,7 @@ function init() {
                         els.sWrap.classList.add('hide');
                         els.sDone.classList.remove('hide');
                         refreshMyResult();
+                        els.btnMyResult.onclick = refreshMyResult;
                     } else {
                         els.joinDialog.showModal();
                     }
