@@ -89,6 +89,55 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.7); }
 .option-group .btn { margin-left: auto; }
 .guide-text { line-height: 1.8; font-size: 0.9em;}
 
+/* ===== 결과 탭 레이아웃 개선 ===== */
+
+/* 패널 폭(상단 메뉴와 동일, 이미 1200px) 유지하되 카드가 패널을 꽉 채우도록 */
+#panelRes .result-card {
+  width: 100%;          /* 패널 너비를 가득 채움 */
+  max-width: 1200px;    /* 상단 메뉴와 동일 상한 */
+  margin: 16px auto;    /* 좌우 중앙 정렬 + 위아래 간격 */
+  padding: 24px;
+  text-align: left;     /* 제목/버튼 정렬을 좌측 기준으로 */
+}
+
+/* 제목과 액션 버튼 정렬 */
+#panelRes .result-card h2 {
+  margin: 0 0 12px 0;
+  font-size: 28px;
+  line-height: 1.2;
+}
+
+#panelRes .result-card .row {
+  justify-content: flex-start;  /* 버튼들을 왼쪽으로 붙임 */
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* 테이블이 카드 폭에 맞춰 안정적으로 채워지도록 */
+#panelRes .leaderboard {
+  width: 100%;
+  table-layout: fixed;  /* 칼럼폭 안정화 */
+}
+
+#panelRes .leaderboard th,
+#panelRes .leaderboard td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 작은 화면에서 표가 넘치면 카드 내부만 가로 스크롤 */
+@media (max-width: 900px) {
+  #panelRes .result-card {
+    overflow-x: auto;
+  }
+}
+
+/* 카드 시각 균형(상단 메뉴 톤과 맞춤) */
+#panelRes .result-card {
+  border-radius: 16px;
+}
+
 /* 전체화면 모드 스타일 */
 body:fullscreen .topbar, body:-webkit-full-screen .topbar { display: none !important; }
 body:fullscreen #panelPres, body:-webkit-full-screen #panelPres { height: 100vh; padding: 2rem; margin: 0; max-width: none;}
