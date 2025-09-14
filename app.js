@@ -277,11 +277,8 @@ function toggleFullscreen() {
     }
 }
 document.addEventListener('fullscreenchange', () => {
-    if (!document.fullscreenElement) {
-        els.btnFullscreen.textContent = "전체 화면";
-    } else {
-        els.btnFullscreen.textContent = "화면 복귀";
-    }
+    const isFullscreen = !!document.fullscreenElement;
+    els.btnFullscreen.textContent = isFullscreen ? "화면 복귀" : "전체 화면";
 });
 
 // ===== 학생 플로우 =====
