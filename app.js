@@ -2,8 +2,10 @@
 const $ = (id) => document.getElementById(id);
 const CE = (tag, cls) => { const el = document.createElement(tag); if(cls) el.className = cls; return el; };
 
+// ===== DOM 엘리먼트 캐시 =====
+let els = {};
+
 // ===== 전역 상태 =====
-let els = {}; // DOM 엘리먼트는 init 함수에서 캐시
 let ROOM = null;
 let MODE = "admin";
 let roomUnsub = null;
@@ -11,7 +13,6 @@ let participantUnsub = null;
 let editQuestions = [];
 let questionTimer = null;
 
-// ===== 초기 설정 =====
 const U = new URL(location.href);
 if ((U.searchParams.get("role")||"").toLowerCase() === "student" && U.searchParams.get("room")) {
   MODE = "student";
@@ -267,6 +268,18 @@ function exportCSV() {
     link.click();
 }
 
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+        els.btnFullscreen.textContent = "전체화면 종료";
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+            els.btnFullscreen.textContent = "전체 화면";
+        }
+    }
+}
+
 // ===== 학생 플로우 =====
 async function joinStudent() {
     const name = els.joinName.value.trim();
@@ -293,27 +306,37 @@ async function submitStudent(answerPayload) {
 
     const q = doc.questions[qIdx];
     const respRef = window.FS.doc("rooms", ROOM, "responses", sid);
-    const respSnap = await window.FS.getDoc(respRef);
-    const data = respSnap.data() || { answers: {} };
-
-    if(data.answers?.[qIdx] !== undefined) { alert("이미 제출했습니다."); return; }
+    
+    const updateData = {};
+    updateData[`answers.${qIdx}`] = answerPayload;
 
     let isCorrect = false;
     if (q.type === "mcq") { isCorrect = (answerPayload === q.answer); } 
     else { isCorrect = String(answerPayload || "").trim().toLowerCase() === String(q.answerText || "").trim().toLowerCase(); }
     
-    const updateData = { [`answers.${qIdx}`]: answerPayload };
-    if (isCorrect) { updateData.score = window.FS.increment(1); }
-    await window.FS.setDoc(respRef, updateData, { merge: true });
+    if (isCorrect) {
+        updateData.score = window.FS.increment(1);
+    }
     
-    const counterUpdate = { 'counters.submit': window.FS.increment(1) };
-    counterUpdate[isCorrect ? 'counters.correct' : 'counters.wrong'] = window.FS.increment(1);
-    await window.FS.updateDoc(roomRef, counterUpdate);
+    try {
+        await window.FS.updateDoc(respRef, updateData);
+    
+        const counterUpdate = { 'counters.submit': window.FS.increment(1) };
+        counterUpdate[isCorrect ? 'counters.correct' : 'counters.wrong'] = window.FS.increment(1);
+        await window.FS.updateDoc(roomRef, counterUpdate);
 
-    if(doc.policy?.openResult) {
-        alert(isCorrect ? "정답입니다! ✅" : "오답입니다. ❌");
-    } else {
-        alert("제출 완료!");
+        if(doc.policy?.openResult) {
+            alert(isCorrect ? "정답입니다! ✅" : "오답입니다. ❌");
+        } else {
+            alert("제출 완료!");
+        }
+    } catch (e) {
+        if (e.code === 'not-found') {
+            alert("아직 참가 등록이 완료되지 않았습니다. 잠시 후 다시 시도해주세요.");
+        } else {
+            console.error("Submit Error:", e);
+            alert("제출 중 오류가 발생했습니다.");
+        }
     }
 }
 
@@ -366,8 +389,13 @@ function renderRoom(r) {
                     els.pOpts.appendChild(b);
                 });
             } else {
-                const b = CE("div","popt"); b.textContent = `정답: ${q.answerText||""}`;
-                if (r.revealed === cur) b.classList.add('correct');
+                const b = CE("div","popt");
+                if (r.revealed === cur) {
+                    b.textContent = `정답: ${q.answerText||""}`;
+                    b.classList.add('correct');
+                } else {
+                    b.textContent = `[주관식 문항]`;
+                }
                 els.pOpts.appendChild(b);
             }
         }
@@ -430,12 +458,10 @@ function renderQuestionList(questions = []) {
         const isUnsaved = index < editQuestions.length;
         const savedQuestionIndex = index - editQuestions.length;
 
-        let displayText = `<span class="item-text">${q.type === 'mcq' ? '[객관식]' : '[주관식]'} ${q.text}</span>`;
+        item.innerHTML = `<span class="item-text">${q.type === 'mcq' ? '[객관식]' : '[주관식]'} ${q.text}</span>`;
         if (isUnsaved) {
-            displayText += `<span class="chip" style="margin-left:10px; font-size: 0.8em; padding: 2px 6px;">저장 안됨</span>`;
+            item.innerHTML += `<span class="chip" style="margin-left:10px; font-size: 0.8em; padding: 2px 6px;">저장 안됨</span>`;
         }
-        item.innerHTML = displayText;
-
         const deleteBtn = CE("button", "delete-btn");
         deleteBtn.textContent = "×";
         deleteBtn.onclick = (e) => {
@@ -605,6 +631,7 @@ function bindAdminEvents() {
         const isHidden = els.studentLinkContainer.classList.toggle('hide');
         els.btnToggleLink.textContent = isHidden ? '주소 보기' : '주소 숨기기';
     };
+    els.btnFullscreen.onclick = toggleFullscreen;
 }
 
 function bindStudentEvents() {
@@ -628,7 +655,7 @@ function cacheDOMElements() {
     els.qrCard = $("qrCard"); els.qrImg = $("qrImg"); els.studentLink = $("studentLink"); els.btnCopy = $("btnCopy"); els.btnOpen = $("btnOpen");
     els.btnToggleLink = $("btnToggleLink"); els.studentLinkContainer = $("studentLinkContainer");
     els.participantCard = $("participantCard"); els.participantCount = $("participantCount"); els.participantList = $("participantList");
-    els.btnStart = $("btnStart"); els.btnPrev = $("btnPrev"); els.btnNext = $("btnNext"); els.btnEnd = $("btnEnd"); els.btnReveal = $("btnReveal");
+    els.btnStart = $("btnStart"); els.btnPrev = $("btnPrev"); els.btnNext = $("btnNext"); els.btnEnd = $("btnEnd"); els.btnReveal = $("btnReveal"); els.btnFullscreen = $("btnFullscreen");
     els.chipJoin = $("chipJoin"); els.chipSubmit = $("chipSubmit"); els.chipCorrect = $("chipCorrect"); els.chipWrong = $("chipWrong");
     els.qCounter = $("qCounter"); els.liveTimer = $("liveTimer");
     els.pTitle = $("pTitle"); els.presHint = $("presHint"); els.pWrap = $("pWrap"); els.pQText = $("pQText"); els.pQImg = $("pQImg"); els.pOpts = $("pOpts");
@@ -637,7 +664,7 @@ function cacheDOMElements() {
     els.joinDialog = $("joinDialog"); els.joinName = $("joinName"); els.btnJoin = $("btnJoin");
     els.sWrap = $("sWrap"); els.sTitle = $("sTitle"); els.sState = $("sState"); els.sQBox = $("sQBox");
     els.sQTitle = $("sQTitle"); els.sQImg = $("sQImg"); els.sOptBox = $("sOptBox");
-    els.sShortWrap = $("sShortWrap"); els.sShort = $("sShort"); els.sShortSend = $("btnShortSend");
+    els.sShortWrap = $("sShortWrap"); els.sShort = $("sShort"); els.sShortSend = $("sShortSend");
     els.sSubmitBox = $("sSubmitBox");
     els.sDone = $("sDone"); els.myResult = $("myResult");
 }
