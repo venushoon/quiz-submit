@@ -645,6 +645,7 @@ function bindAdminEvents() {
 function bindStudentEvents() {
     els.btnJoin.onclick = joinStudent;
     els.sShortSend.onclick = () => submitStudent(els.sShort.value);
+    els.btnMyResult.onclick = refreshMyResult;
 }
 
 function cacheDOMElements() {
