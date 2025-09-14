@@ -213,3 +213,95 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.7); }
 /* 전체화면 모드 스타일 */
 body:fullscreen .topbar, body:-webkit-full-screen .topbar { display: none !important; }
 body:fullscreen #panelPres, body:-webkit-full-screen #panelPres { height: 100vh; padding: 2rem; margin: 0; max-width: none;}
+
+/* ===== 옵션 탭 레이아웃: 상단 UI와 폭 정렬, 3단 배치 ===== */
+
+/* 패널 내 카드들이 상단 메뉴와 동일한 최대폭을 갖도록 */
+#panelOpt {
+  max-width: 1200px;       /* 상단 패널과 동일 */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* 기본 2단 그리드를 큰 화면에서는 3단으로 전환 */
+#panelOpt .grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;  /* 기본(체크: 기존과 동일) */
+  gap: 16px;
+}
+
+/* 큰 화면: 3단으로, 카드 wrapper를 평탄화(display: contents)해서 하위 카드들을 직접 그리드에 올림 */
+@media (min-width: 1100px) {
+  #panelOpt .grid-2 {
+    grid-template-columns: 1.2fr 1fr 0.8fr;  /* 옵션 | QR | 참가자 */
+    align-items: start;
+  }
+  #panelOpt .grid-2 > div { 
+    display: contents;           /* 래퍼 두 개를 '투명' 처리 → 자식 카드들이 같은 그리드 레벨로 */
+  }
+
+  /* 1열: 옵션 설정 카드 */
+  #panelOpt .option-card { grid-column: 1; }
+
+  /* 2열: 학생용 접속(= QR) 카드 */
+  #panelOpt #qrCard { grid-column: 2; }
+
+  /* 3열: 접속한 학생 카드 */
+  #panelOpt #participantCard { grid-column: 3; }
+
+  /* 교사용 가이드는 아래쪽 전체 폭으로 */
+  #panelOpt .card:not(.option-card):not(#qrCard):not(#participantCard) {
+    grid-column: 1 / -1;         /* 1~3열 전체 폭 */
+  }
+}
+
+/* 카드 자체 여백/둥근 모서리 상단 UI와 톤 매칭 */
+#panelOpt .card { 
+  padding: 24px;
+  border-radius: 16px;
+}
+
+/* 옵션 카드 내 컨트롤 가독성 */
+#panelOpt .option-card h2 { 
+  margin-top: 0; 
+  margin-bottom: 14px; 
+}
+#panelOpt .option-card .option-group { 
+  margin-bottom: 14px; 
+}
+#panelOpt .option-card .option-controls { 
+  gap: 16px; 
+}
+
+/* QR 카드 내부: QR 이미지와 링크 행 정돈 */
+#panelOpt #qrCard .qr {
+  width: 100%;
+  max-width: 360px;   /* 넉넉하지만 과도하지 않게 */
+  height: auto;
+  display: block;
+  margin: 8px auto 0;
+}
+#panelOpt #studentLinkContainer .input {
+  flex: 1 1 auto;
+  min-width: 200px;
+}
+
+/* 참가자 카드 리스트 가독성 */
+#panelOpt #participantList { 
+  max-height: 480px; 
+  overflow: auto; 
+  padding-right: 4px;
+}
+#panelOpt #participantList li { 
+  font-size: 0.95em; 
+}
+
+/* 더 작은 화면 대응: 1열/2열로 자연스럽게 접힘 */
+@media (max-width: 900px) {
+  #panelOpt .grid-2 {
+    grid-template-columns: 1fr;        /* 세로 1열 */
+  }
+  #panelOpt .grid-2 > div { display: block; }  /* 평탄화 해제 */
+  #panelOpt #qrCard, 
+  #panelOpt #participantCard { margin-top: 8px; }
+}
