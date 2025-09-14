@@ -90,6 +90,5 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.7); }
 .guide-text { line-height: 1.8; font-size: 0.9em;}
 
 /* 전체화면 모드 스타일 */
-:root:fullscreen, body:fullscreen { background: var(--bg); }
-body:fullscreen .topbar { display: none !important; }
-body:fullscreen #panelPres { height: 100vh; padding: 2rem; margin: 0; max-width: none;}
+body:fullscreen .topbar, body:-webkit-full-screen .topbar { display: none !important; }
+body:fullscreen #panelPres, body:-webkit-full-screen #panelPres { height: 100vh; padding: 2rem; margin: 0; max-width: none;}
