@@ -40,7 +40,6 @@ body.bright-mode .btn.green { color: #fff; }
 .muted{color:var(--muted);font-size:14px}
 
 .qtitle{font-size:28px; text-align: center; margin: 20px 0; font-weight: 600;}
-/* [요청 2] 프레젠테이션 레이아웃 수정 */
 #panelPres { display: flex; flex-direction: column; }
 .presentation-view { flex-grow: 1; display: flex; flex-direction: column; justify-content: center;}
 #pWrap { width: 100%; }
@@ -65,6 +64,7 @@ body.bright-mode .qlist .item { background: #f1f3f5; }
 .table th,.table td{border:1px solid var(--line);padding:10px 12px;text-align:center}
 
 .result-card { text-align: center; }
+.result-card .row { justify-content: center; }
 .leaderboard tr.rank-1 { background-color: rgba(255, 215, 0, 0.2); }
 .leaderboard tr.rank-2 { background-color: rgba(192, 192, 192, 0.2); }
 .leaderboard tr.rank-3 { background-color: rgba(205, 127, 50, 0.2); }
@@ -88,3 +88,8 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.7); }
 .option-controls { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;}
 .option-group .btn { margin-left: auto; }
 .guide-text { line-height: 1.8; font-size: 0.9em;}
+
+/* 전체화면 모드 스타일 */
+:root:fullscreen, body:fullscreen { background: var(--bg); }
+body:fullscreen .topbar, body:fullscreen .tabs { display: none !important; }
+body:fullscreen #panelPres { height: 100vh; padding: 2rem; margin: 0; max-width: none;}
