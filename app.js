@@ -415,8 +415,8 @@ function renderRoom(r) {
             els.sQBox.classList.add("hide");
             els.sState.textContent = "";
             els.sDone.classList.remove("hide");
+            els.btnMyResult.onclick = refreshMyResult; // 이벤트 바인딩
             refreshMyResult();
-            els.btnMyResult.onclick = refreshMyResult;
         } else if (r.mode !== 'active' || !q) {
             els.sState.textContent = "교사가 시작버튼을 누르면 퀴즈가 시작됩니다. 준비되었나요?";
             els.sQBox.classList.add("hide");
@@ -698,6 +698,7 @@ function init() {
                         els.sWrap.classList.add('hide');
                         els.sDone.classList.remove('hide');
                         refreshMyResult();
+                        els.btnMyResult.onclick = refreshMyResult;
                     } else {
                         els.joinDialog.showModal();
                     }
