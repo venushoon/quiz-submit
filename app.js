@@ -1,26 +1,50 @@
 /* ================================
-   app.js — 최종 완성본 (복붙 교체용)
-   - 로드 타이밍 보강: ready(init)
-   - 안전 바인딩: null-safe 처리
-   - 레거시 id 호환: alias/pick 헬퍼
-   - 주관식 제출/내결과보기 확실 동작
+   app.js — 최종 완성본 (보안 및 에러 핸들링 강화)
 ==================================*/
+
+// ===== Firebase 초기화 (Vite 환경변수 활용) =====
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/firestore';
+
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
+};
+
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+window.db = firebase.firestore();
+window.FS = {
+  doc: (...path) => {
+    let ref = window.db;
+    for (let i = 0; i < path.length; i += 2) {
+      ref = ref.collection(path[i]);
+      if (path[i + 1]) ref = ref.doc(path[i + 1]);
+    }
+    return ref;
+  },
+  getDoc: (ref) => ref.get(),
+  getDocs: (ref) => ref.get(),
+  setDoc: (ref, data, opt) => opt?.merge ? ref.set(data, { merge: true }) : ref.set(data),
+  updateDoc: (ref, data) => ref.update(data),
+  onSnapshot: (ref, cb) => ref.onSnapshot(cb),
+  increment: (val) => firebase.firestore.FieldValue.increment(val),
+  serverTimestamp: () => firebase.firestore.FieldValue.serverTimestamp()
+};
 
 // ===== 유틸 =====
 const $ = (id) => document.getElementById(id);
 const CE = (tag, cls) => { const el = document.createElement(tag); if (cls) el.className = cls; return el; };
-
-// 이미 로드되었으면 즉시, 아니면 load 후 실행
-function ready(fn) { if (document.readyState === "complete") fn(); else window.addEventListener("load", fn, { once:true }); }
-// 여러 후보 id 중 먼저 존재하는 요소를 반환
 function pick(...ids){ for(const id of ids){ const el=document.getElementById(id); if(el) return el; } return null; }
-// 안전 addEventListener
 function on(el, type, handler){ if(el) el.addEventListener(type, handler); }
 
-// ===== DOM 캐시 =====
+// ===== DOM 캐시 & 전역 상태 =====
 let els = {};
-
-// ===== 전역 상태 =====
 let ROOM = null;
 let MODE = "admin";
 let roomUnsub = null;
@@ -41,7 +65,7 @@ const getStudentId = () => {
   return id;
 };
 
-// ===== 공통 =====
+// ===== 공통 기능 =====
 function setTab(activeTabId) {
   if (els.tabs && els.panels) {
     els.tabs.forEach(tab => tab.classList.toggle('active', tab.id === activeTabId));
@@ -78,23 +102,28 @@ function defaultRoom(){
 
 // ===== 관리자 플로우 =====
 async function connect(){
-  const room = els.sessionInput?.value?.trim();
-  if(!room){ alert("세션 코드를 입력하세요."); return; }
-  ROOM = room;
+  try {
+    const room = els.sessionInput?.value?.trim();
+    if(!room){ alert("세션 코드를 입력하세요."); return; }
+    ROOM = room;
 
-  const docRef = window.FS.doc("rooms", ROOM);
-  const doc = await window.FS.getDoc(docRef);
-  if(!doc.exists) await window.FS.setDoc(docRef, defaultRoom());
+    const docRef = window.FS.doc("rooms", ROOM);
+    const doc = await window.FS.getDoc(docRef);
+    if(!doc.exists) await window.FS.setDoc(docRef, defaultRoom());
 
-  els.sessionInput && (els.sessionInput.disabled = true);
-  if(els.btnConnection){ els.btnConnection.textContent='세션아웃'; els.btnConnection.classList.add('danger'); els.btnConnection.onclick = disconnect; }
-  els.sessionStatus && (els.sessionStatus.textContent = `세션: ${ROOM} · 온라인`);
+    els.sessionInput && (els.sessionInput.disabled = true);
+    if(els.btnConnection){ els.btnConnection.textContent='세션아웃'; els.btnConnection.classList.add('danger'); els.btnConnection.onclick = disconnect; }
+    els.sessionStatus && (els.sessionStatus.textContent = `세션: ${ROOM} · 온라인`);
 
-  buildStudentLink(ROOM);
-  setTab('tabQ');
+    buildStudentLink(ROOM);
+    setTab('tabQ');
 
-  if(roomUnsub) roomUnsub();
-  roomUnsub = window.FS.onSnapshot(docRef, snap => { if(snap.exists) renderRoom(snap.data()); });
+    if(roomUnsub) roomUnsub();
+    roomUnsub = window.FS.onSnapshot(docRef, snap => { if(snap.exists) renderRoom(snap.data()); });
+  } catch (err) {
+    console.error("접속 오류:", err);
+    alert("데이터베이스 접속 중 오류가 발생했습니다. 권한이나 네트워크를 확인하세요.");
+  }
 }
 
 function disconnect(){
@@ -138,23 +167,36 @@ function addQuestionUI(){
   };
 
   if(file){
+    // Firestore 문서 용량 제한 대비 (1MB) - Base64 인코딩 시 용량이 커짐을 감안하여 800KB 제한
+    if(file.size > 800 * 1024) { 
+      alert("이미지 용량이 너무 큽니다 (800KB 이하 권장). 더 작은 이미지를 선택해주세요.");
+      els.qImg.value = "";
+      return;
+    }
     const reader = new FileReader();
     reader.onload = ()=>{ q.image = reader.result; pushQ(q); };
+    reader.onerror = ()=>{ alert("이미지를 읽는 중 오류가 발생했습니다."); }
     reader.readAsDataURL(file);
   }else pushQ(q);
 }
 
+// ... [이하 코드는 app.js 원본 코드와 동일하게 유지하되, 일부 try-catch 추가] ...
 async function saveQuestions(){
   if(!ROOM){ alert("먼저 세션에 접속하세요."); return; }
   if(editQuestions.length===0){ alert("추가된 문항이 없습니다."); return; }
-  const docRef = window.FS.doc("rooms", ROOM);
-  const doc = await window.FS.getDoc(docRef);
-  const currentQuestions = doc.exists ? (doc.data().questions||[]) : [];
-  const newQuestions = [...currentQuestions, ...editQuestions];
-  const title = els.quizTitle?.value || doc.data()?.title || "퀴즈";
-  await window.FS.setDoc(docRef, { questions:newQuestions, title }, { merge:true });
-  editQuestions = [];
-  alert("문항 저장 완료");
+  try {
+    const docRef = window.FS.doc("rooms", ROOM);
+    const doc = await window.FS.getDoc(docRef);
+    const currentQuestions = doc.exists ? (doc.data().questions||[]) : [];
+    const newQuestions = [...currentQuestions, ...editQuestions];
+    const title = els.quizTitle?.value || doc.data()?.title || "퀴즈";
+    await window.FS.setDoc(docRef, { questions:newQuestions, title }, { merge:true });
+    editQuestions = [];
+    alert("문항 저장 완료");
+  } catch (err) {
+    console.error("문항 저장 오류:", err);
+    alert("저장 중 오류가 발생했습니다.");
+  }
 }
 
 async function deleteQuestion(indexToDelete){
@@ -220,34 +262,36 @@ async function resetAll(){
 
 async function controlQuiz(action){
   if(!ROOM){ alert("먼저 세션에 접속하세요."); return; }
-  const docRef = window.FS.doc("rooms", ROOM);
+  try {
+    const docRef = window.FS.doc("rooms", ROOM);
 
-  if(action==='start'){
-    const doc = await window.FS.getDoc(docRef);
-    if(!doc.exists || !doc.data().questions || doc.data().questions.length===0){
-      alert("퀴즈에 문항이 없습니다. 문항을 추가한 후 시작해주세요.");
-      return;
-    }
-    await window.FS.updateDoc(docRef, { mode:"active", currentIndex:0, accept:true, revealed:-1 });
-  }else if(action==='end'){
-    await window.FS.updateDoc(docRef, { mode:"ended", accept:false });
-    setTab('tabRes');
-  }else{
-    const doc = await window.FS.getDoc(docRef);
-    if(!doc.exists) return;
-    const data = doc.data();
-    const max = (data.questions?.length||0) - 1;
-    const cur = data.currentIndex ?? -1;
+    if(action==='start'){
+      const doc = await window.FS.getDoc(docRef);
+      if(!doc.exists || !doc.data().questions || doc.data().questions.length===0){
+        alert("퀴즈에 문항이 없습니다. 문항을 추가한 후 시작해주세요.");
+        return;
+      }
+      await window.FS.updateDoc(docRef, { mode:"active", currentIndex:0, accept:true, revealed:-1 });
+    }else if(action==='end'){
+      await window.FS.updateDoc(docRef, { mode:"ended", accept:false });
+      setTab('tabRes');
+    }else{
+      const doc = await window.FS.getDoc(docRef);
+      if(!doc.exists) return;
+      const data = doc.data();
+      const max = (data.questions?.length||0) - 1;
+      const cur = data.currentIndex ?? -1;
 
-    if(action==='next'){
-      if(cur < max) await window.FS.updateDoc(docRef, { currentIndex:cur+1, accept:true, revealed:-1 });
-      else await controlQuiz('end');
-    }else if(action==='prev'){
-      await window.FS.updateDoc(docRef, { currentIndex:Math.max(0, cur-1), accept:true, revealed:-1 });
-    }else if(action==='reveal'){
-      await window.FS.updateDoc(docRef, { revealed:cur, accept:false });
+      if(action==='next'){
+        if(cur < max) await window.FS.updateDoc(docRef, { currentIndex:cur+1, accept:true, revealed:-1 });
+        else await controlQuiz('end');
+      }else if(action==='prev'){
+        await window.FS.updateDoc(docRef, { currentIndex:Math.max(0, cur-1), accept:true, revealed:-1 });
+      }else if(action==='reveal'){
+        await window.FS.updateDoc(docRef, { revealed:cur, accept:false });
+      }
     }
-  }
+  } catch (err) { console.error("제어 오류:", err); }
 }
 
 function exportCSV(){
@@ -279,18 +323,19 @@ async function joinStudent(){
   if(!name){ alert("이름을 입력하세요."); return; }
   const sid = getStudentId();
 
-  const roomRef = window.FS.doc("rooms", ROOM);
-  const respRef = window.FS.doc("rooms", ROOM, "responses", sid);
+  try {
+    const roomRef = window.FS.doc("rooms", ROOM);
+    const respRef = window.FS.doc("rooms", ROOM, "responses", sid);
 
-  await window.db.runTransaction(async (tx)=>{
-    const respDoc = await tx.get(respRef);
-    if(!respDoc.exists){
-      tx.set(respRef, { name, joinedAt: window.FS.serverTimestamp(), deviceId:sid, answers:{}, score:0 });
-      tx.update(roomRef, { 'counters.join': window.FS.increment(1) });
-    }
-  });
-
-  els.joinDialog?.close?.();
+    await window.db.runTransaction(async (tx)=>{
+      const respDoc = await tx.get(respRef);
+      if(!respDoc.exists){
+        tx.set(respRef, { name, joinedAt: window.FS.serverTimestamp(), deviceId:sid, answers:{}, score:0 });
+        tx.update(roomRef, { 'counters.join': window.FS.increment(1) });
+      }
+    });
+    els.joinDialog?.close?.();
+  } catch(e) { console.error("접속 실패:", e); alert("서버 접속에 실패했습니다."); }
 }
 
 async function submitStudent(answerPayload){
@@ -327,10 +372,10 @@ async function submitStudent(answerPayload){
 
       setTimeout(()=> alert(r.policy?.openResult ? (ok ? "정답입니다! ✅" : "오답입니다. ❌") : "제출 완료!"), 0);
     });
-  }catch(e){ console.error("제출 트랜잭션 실패:", e); }
+  }catch(e){ console.error("제출 트랜잭션 실패:", e); alert("제출 중 오류가 발생했습니다."); }
 }
 
-// ===== 렌더링 =====
+// ===== 렌더링 (원래 코드와 동일하므로 내용 유지) =====
 function renderRoom(r){
   els.body?.classList?.toggle('bright-mode', !!r.policy?.bright);
   els.pTitle && (els.pTitle.textContent = r.title || "");
@@ -357,7 +402,6 @@ function renderRoom(r){
   const q = r.questions?.[cur];
   updateTimer(r);
 
-  // 관리자 화면
   if(MODE==='admin'){
     if(!els.presHint || !els.pWrap) return;
     if(r.mode==='ended'){
@@ -389,7 +433,6 @@ function renderRoom(r){
     }
   }
 
-  // 학생 화면
   if(MODE==='student'){
     if(!els.joinDialog?.open) els.sWrap && els.sWrap.classList.remove("hide");
 
@@ -568,105 +611,35 @@ function listenForParticipants(){
   });
 }
 
-// ===== DOM 캐시 (레거시 id 호환) =====
+// ===== DOM 캐시 및 초기화 =====
 function cacheDOMElements(){
   const alias = {
     body: [],
-    // 세션/탭
-    sessionInput:['sessionInput','roomInput','sessInput'],
-    btnConnection:['btnConnection','connectBtn','btnConnect'],
-    sessionStatus:['sessionStatus','statusText'],
+    sessionInput:['sessionInput','roomInput','sessInput'], btnConnection:['btnConnection','connectBtn','btnConnect'], sessionStatus:['sessionStatus','statusText'],
     tabQ:['tabQ'], tabOpt:['tabOpt'], tabPres:['tabPres'], tabRes:['tabRes'],
-    // 문항 편집
-    quizTitle:['quizTitle','titleInput'],
-    btnBlank:['btnBlank','makeBlankBtn'],
-    btnSample:['btnSample','loadSampleBtn'],
-    btnSaveQ:['btnSaveQ','saveQuestionsBtn'],
-    btnResetQ:['btnResetQ','resetQuestionsBtn'],
-    qText:['qText','question','questionText'],
-    qType:['qType','questionType'],
-    qAnswer:['qAnswer','answer','answerText'],
-    qImg:['qImg','qImage','questionImage'],
-    mcqBox:['mcqBox','mcqRow'],
-    opt1:['opt1','choice1'], opt2:['opt2','choice2'], opt3:['opt3','choice3'], opt4:['opt4','choice4'],
-    btnAddQ:['btnAddQ','addQuestionBtn'],
-    qList:['qList','questionList'],
-    // 옵션
-    onceDevice:['onceDevice','onceDeviceRadio'],
-    onceName:['onceName','onceNameRadio'],
-    openResult:['openResult','cbOpenResult'],
-    brightMode:['brightMode','cbBrightMode'],
-    timerSec:['timerSec','timer','secTimer'],
-    btnOptSave:['btnOptSave','saveOptionsBtn'],
-    // 학생 접속/QR
-    qrCard:['qrCard','cardQR'], qrImg:['qrImg','qrImage'],
-    studentLink:['studentLink','studentUrl'],
-    btnCopy:['btnCopy','btnCopyLink'],
-    btnOpen:['btnOpen','btnOpenLink'],
-    btnToggleLink:['btnToggleLink','toggleLinkBtn','btnShowLink'],
-    studentLinkContainer:['studentLinkContainer','studentLinkRow'],
-    // 참가자
-    participantCard:['participantCard','cardParticipants'],
-    participantCount:['participantCount','countParticipants'],
-    participantList:['participantList','listParticipants'],
-    // 프레젠테이션 컨트롤
-    btnStart:['btnStart','startBtn'],
-    btnPrev:['btnPrev','prevBtn'],
-    btnNext:['btnNext','nextBtn'],
-    btnEnd:['btnEnd','endBtn','finishBtn'],
-    btnReveal:['btnReveal','revealBtn','showAnswerBtn'],
-    btnFullscreen:['btnFullscreen','fullScreenBtn'],
-    chipJoin:['chipJoin'], chipSubmit:['chipSubmit'], chipCorrect:['chipCorrect'], chipWrong:['chipWrong'],
-    qCounter:['qCounter'], liveTimer:['liveTimer','timerDisplay'],
-    // 프레젠테이션 뷰
-    pTitle:['pTitle','presTitle'],
-    presHint:['presHint','presentationHint'],
-    pWrap:['pWrap','presentationWrap'],
-    pQText:['pQText','pQuestion'],
-    pQImg:['pQImg','pImage'],
-    pOpts:['pOpts','pOptions'],
-    // 결과
-    btnExport:['btnExport','exportBtn'],
-    btnResetAll:['btnResetAll','resetAllBtn'],
-    resHead:['resHead','resultHead'],
-    resBody:['resBody','resultBody'],
-    // 학생 패널
-    studentPanel:['studentPanel'],
-    joinDialog:['joinDialog','dlgJoin'],
-    joinName:['joinName','inputJoinName'],
-    btnJoin:['btnJoin','joinBtn'],
-    sWrap:['sWrap','studentWrap'],
-    sTitle:['sTitle','studentTitle'],
-    sState:['sState','studentState'],
-    // 학생 진행
-    sQBox:['sQBox','studentQBox'],
-    sQTitle:['sQTitle','studentQTitle'],
-    sQImg:['sQImg','studentQImg'],
-    sOptBox:['sOptBox','studentOptBox'],
-    sShortWrap:['sShortWrap','studentShortWrap'],
-    sShort:['sShort','studentShort'],
-    btnShortSend:['btnShortSend','sShortSend'], // 주관식 제출
-    sSubmitBox:['sSubmitBox','studentSubmitBox'],
-    // 학생 종료/결과
-    sDone:['sDone','studentDone'],
-    myResult:['myResult','myResultBox'],
-    btnMyResult:['btnMyResult','sMyResult','btnResult'] // 결과 버튼
+    quizTitle:['quizTitle','titleInput'], btnBlank:['btnBlank','makeBlankBtn'], btnSample:['btnSample','loadSampleBtn'], btnSaveQ:['btnSaveQ','saveQuestionsBtn'], btnResetQ:['btnResetQ','resetQuestionsBtn'],
+    qText:['qText','question','questionText'], qType:['qType','questionType'], qAnswer:['qAnswer','answer','answerText'], qImg:['qImg','qImage','questionImage'], mcqBox:['mcqBox','mcqRow'],
+    opt1:['opt1','choice1'], opt2:['opt2','choice2'], opt3:['opt3','choice3'], opt4:['opt4','choice4'], btnAddQ:['btnAddQ','addQuestionBtn'], qList:['qList','questionList'],
+    onceDevice:['onceDevice','onceDeviceRadio'], onceName:['onceName','onceNameRadio'], openResult:['openResult','cbOpenResult'], brightMode:['brightMode','cbBrightMode'], timerSec:['timerSec','timer','secTimer'], btnOptSave:['btnOptSave','saveOptionsBtn'],
+    qrCard:['qrCard','cardQR'], qrImg:['qrImg','qrImage'], studentLink:['studentLink','studentUrl'], btnCopy:['btnCopy','btnCopyLink'], btnOpen:['btnOpen','btnOpenLink'], btnToggleLink:['btnToggleLink','toggleLinkBtn','btnShowLink'], studentLinkContainer:['studentLinkContainer','studentLinkRow'],
+    participantCard:['participantCard','cardParticipants'], participantCount:['participantCount','countParticipants'], participantList:['participantList','listParticipants'],
+    btnStart:['btnStart','startBtn'], btnPrev:['btnPrev','prevBtn'], btnNext:['btnNext','nextBtn'], btnEnd:['btnEnd','endBtn','finishBtn'], btnReveal:['btnReveal','revealBtn','showAnswerBtn'], btnFullscreen:['btnFullscreen','fullScreenBtn'],
+    chipJoin:['chipJoin'], chipSubmit:['chipSubmit'], chipCorrect:['chipCorrect'], chipWrong:['chipWrong'], qCounter:['qCounter'], liveTimer:['liveTimer','timerDisplay'],
+    pTitle:['pTitle','presTitle'], presHint:['presHint','presentationHint'], pWrap:['pWrap','presentationWrap'], pQText:['pQText','pQuestion'], pQImg:['pQImg','pImage'], pOpts:['pOpts','pOptions'],
+    btnExport:['btnExport','exportBtn'], btnResetAll:['btnResetAll','resetAllBtn'], resHead:['resHead','resultHead'], resBody:['resBody','resultBody'],
+    studentPanel:['studentPanel'], joinDialog:['joinDialog','dlgJoin'], joinName:['joinName','inputJoinName'], btnJoin:['btnJoin','joinBtn'], sWrap:['sWrap','studentWrap'], sTitle:['sTitle','studentTitle'], sState:['sState','studentState'],
+    sQBox:['sQBox','studentQBox'], sQTitle:['sQTitle','studentQTitle'], sQImg:['sQImg','studentQImg'], sOptBox:['sOptBox','studentOptBox'], sShortWrap:['sShortWrap','studentShortWrap'], sShort:['sShort','studentShort'], btnShortSend:['btnShortSend','sShortSend'], sSubmitBox:['sSubmitBox','studentSubmitBox'],
+    sDone:['sDone','studentDone'], myResult:['myResult','myResultBox'], btnMyResult:['btnMyResult','sMyResult','btnResult']
   };
 
   els.body = document.body;
-  Object.entries(alias).forEach(([key, ids])=>{
-    if(key==='body') return;
-    els[key] = pick(...ids);
-  });
+  Object.entries(alias).forEach(([key, ids])=>{ if(key==='body') return; els[key] = pick(...ids); });
   els.tabs = document.querySelectorAll('.tabs .tab, .tab') || [];
   els.panels = document.querySelectorAll('.panel.admin-only, section.panel.admin-only') || [];
 }
 
-// ===== 초기화 =====
 function init(){
   cacheDOMElements();
-
-  if(!window.firebase || !window.db){ alert("Firebase 라이브러리 로딩에 실패했습니다."); return; }
 
   if(MODE==='admin'){
     document.querySelectorAll('.admin-only').forEach(el=> el.style.display='flex');
@@ -697,7 +670,7 @@ function init(){
 
     setTab('tabQ');
 
-  }else{ // student
+  }else{
     document.querySelectorAll('.admin-only').forEach(el=> el.style.display='none');
     els.studentPanel && (els.studentPanel.style.display='block');
     els.btnJoin && (els.btnJoin.onclick = joinStudent);
@@ -722,5 +695,9 @@ function init(){
   }
 }
 
-// === 실행 ===
-ready(init);
+// 브라우저 환경에서 DOM 로드 후 실행 보장
+if (document.readyState === "complete") {
+  init();
+} else {
+  window.addEventListener("load", init, { once: true });
+}
